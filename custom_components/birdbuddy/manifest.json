@@ -16,7 +16,7 @@
   ],
   "requirements": [
     "python-graphql-client==0.4.3",
-    "pybirdbuddy==0.0.19"
+    "pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@schema-refresh-2026-05"
   ],
   "ssdp": [],
   "version": "0.0.24",
