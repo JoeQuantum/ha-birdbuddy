@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, ServiceCall
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
@@ -31,6 +32,15 @@ PLATFORMS: list[Platform] = [
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+# Unique-id suffixes for entities that were previously disabled-by-default but
+# are now enabled-by-default. HA's entity registry persists `disabled_by` per
+# entity, so flipping `_attr_entity_registry_enabled_default = True` in code
+# does NOT retroactively enable already-registered entities; users would have
+# to enable each one by hand. `_async_migrate_enabled_defaults` does it for
+# them at integration load. Add to this tuple when promoting any other
+# previously-disabled entity in future releases.
+_PROMOTED_DISABLED_DEFAULT_SUFFIXES: tuple[str, ...] = ("-recent-visitor",)
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Setup the integration"""
@@ -39,12 +49,38 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+def _async_migrate_enabled_defaults(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Re-enable entities whose default was promoted from disabled to enabled."""
+    registry = er.async_get(hass)
+    for ent in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if ent.disabled_by is not er.RegistryEntryDisabler.INTEGRATION:
+            continue
+        if not any(
+            ent.unique_id.endswith(suffix)
+            for suffix in _PROMOTED_DISABLED_DEFAULT_SUFFIXES
+        ):
+            continue
+        LOGGER.info(
+            "Re-enabling %s (default flipped from disabled to enabled in a "
+            "newer release; HA's registry remembered the old default)",
+            ent.entity_id,
+        )
+        registry.async_update_entity(ent.entity_id, disabled_by=None)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
 ) -> bool:
     """Set up Bird Buddy from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Migrate registry state BEFORE platforms set up, so the platforms create
+    # their entities against the corrected disabled_by value.
+    _async_migrate_enabled_defaults(hass, entry)
+
     client = BirdBuddy(entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD])
     client.language_code = hass.config.language
     coordinator = BirdBuddyDataUpdateCoordinator(hass, client, entry)
