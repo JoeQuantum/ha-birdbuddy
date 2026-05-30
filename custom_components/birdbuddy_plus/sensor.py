@@ -112,7 +112,6 @@ class BirdBuddySignalEntity(BirdBuddyMixin, SensorEntity):
 class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
     """Bird Buddy recent visitors"""
 
-    _attr_entity_registry_enabled_default = False
     _attr_has_entity_name = True
     _attr_icon = "mdi:bird"
     _attr_name = "Recent Visitor"

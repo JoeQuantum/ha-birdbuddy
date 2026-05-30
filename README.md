@@ -89,7 +89,7 @@ A device is created for each Bird Buddy feeder associated with the account. See 
 | `Signal`         | `sensor`        | Current wifi signal (RSSI)                                                                                                                      |
 | `Update`         | `update`        | Show and install Firmware updates (owners only)                                                                                                 |
 
-Some entities are disabled or hidden by default if they represent an advanced use case (for example, the "Signal" and "Recent Visitor" entities). There are also entities disabled by default because the support is not yet enabled by the Bird Buddy API (for example, the Temperature and Food Level sensors).
+Some entities are disabled or hidden by default if they represent an advanced use case (for example, the "Signal" entity), or because the support is not yet enabled by the Bird Buddy API (for example, the Temperature and Food Level sensors).
 
 More entities will be added as this fork matures.
 
