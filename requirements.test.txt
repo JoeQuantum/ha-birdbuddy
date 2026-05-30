@@ -1,8 +1,9 @@
 -r requirements.txt
 
-# From manifest.json
+# From manifest.json — listed here for clarity; pybirdbuddy comes in via
+# requirements.txt above (don't re-add as editable here, or pip refuses to
+# resolve same package as both regular and editable install).
 python-graphql-client==0.4.3
--e git+https://github.com/JoeQuantum/pybirdbuddy.git@schema-refresh-2026-05#egg=pybirdbuddy
 
 # for tests
 # For Python 3.12 and above
