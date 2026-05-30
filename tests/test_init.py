@@ -1,5 +1,5 @@
 """Test component setup."""
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, patch, PropertyMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -10,13 +10,6 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.birdbuddy_plus.const import DOMAIN
-
-
-def _empty_feed_mock():
-    """Stub for BirdBuddy.feed() — returns something with a .filter() returning []."""
-    feed = MagicMock()
-    feed.filter.return_value = []
-    return feed
 
 
 @pytest.fixture(name="expected_lingering_timers")
@@ -45,19 +38,23 @@ async def test_setup_entry(hass: HomeAssistant):
         "birdbuddy.client.BirdBuddy.refresh_feed",
         return_value=[],
     ), patch(
-        "birdbuddy.client.BirdBuddy.feed",
-        return_value=_empty_feed_mock(),
-    ), patch(
         "birdbuddy.client.BirdBuddy.feeders",
         new_callable=PropertyMock,
         return_value={"feeder1": {"id": "feeder1", "name": "Test Feeder"}}
+    ), patch(
+        # RecentVisitors schedules `_update_latest_visitor` via `hass.add_job`
+        # when the first listener registers. That method walks into multiple
+        # unmocked BirdBuddy methods (feed, refresh_collections, …) and hits
+        # the network. This test asserts setup succeeds; the visitor refresh
+        # path is exercised in dedicated tests. Stub it out here so we don't
+        # need to mock every method it touches.
+        "custom_components.birdbuddy_plus.visitors.RecentVisitors._update_latest_visitor",
+        new=AsyncMock(return_value=None),
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
-        # Tear down the entry inside the patch block. The coordinator schedules
-        # a periodic refresh AND RecentVisitors schedules `_update_latest_visitor`
-        # via `hass.add_job` when the first listener registers; both can run
-        # after the patch block exits if not torn down here, hitting real
-        # aiohttp → aiodns (which crashes on some aiodns/pycares version pairs).
+        # Tear down the entry inside the patch block so the coordinator's
+        # periodic refresh timer can't fire against real aiohttp/aiodns after
+        # the mocks release.
         await hass.config_entries.async_unload(config_entry.entry_id)
         await hass.async_block_till_done()
 
