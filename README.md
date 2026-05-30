@@ -101,11 +101,23 @@ Bird species and sightings that have _already been collected_ from postcards can
 
 ### `birdbuddy_plus_new_postcard_sighting`
 
-This event is fired when a new postcard is detected in the feed.
+This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*. See "Postcard auto-collection" below for an important Bird Buddy behavior change.
 
 > **Note (fix for upstream [#78](https://github.com/jhansche/ha-birdbuddy/issues/78))**
 >
 > Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. Bird Buddy Plus slims the payload before firing — the resulting event is typically <10 KB.
+
+## Postcard auto-collection (Bird Buddy behavior change)
+
+As of mid-2026, Bird Buddy stopped auto-creating sightings from postcards. To process a postcard, **you have to open the Bird Buddy app and confirm/identify the bird first**. Until you do, calls to `sightingCreateFromPostcard` return `INTERNAL_SERVER_ERROR` server-side — upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98).
+
+What this means for the integration:
+
+- New postcards that haven't been identified in the app **will not fire** `birdbuddy_plus_new_postcard_sighting` (no sighting to put in the payload). You'll see a warning in HA logs naming the postcard ID.
+- Bird Buddy Plus tolerates this gracefully: it logs the warning, skips that postcard, and keeps processing the rest of the feed. The coordinator stays available — feeder state, battery, signal, etc. continue updating.
+- After you identify a bird in the BB app, the next coordinator refresh (within ~10 min) will be able to convert it to a sighting and fire the event normally, and your `collect_postcard` automation will run.
+
+This is a product change on Bird Buddy's side, not an integration bug. If/when Bird Buddy restores auto-identification (or exposes an alternate API for un-identified sightings), we'll restore the previous flow.
 
 | Field      | Description                                                                                              |
 | ---------- | -------------------------------------------------------------------------------------------------------- |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from birdbuddy.client import BirdBuddy
+from birdbuddy.exceptions import GraphqlError
 from birdbuddy.feed import FeedNode, FeedNodeType
 from birdbuddy.feeder import Feeder
 from birdbuddy.media import Collection
@@ -96,7 +97,25 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             # If this is a viable option, we can supply a Recipe in docs to show how this could
             # be done. Similarly, we can supply some default blueprints to handle this with
             # user input.
-            sighting = await self.client.sighting_from_postcard(postcard=postcard)
+            try:
+                sighting = await self.client.sighting_from_postcard(postcard=postcard)
+            except GraphqlError as err:
+                # Upstream #98: as of mid-2026 Bird Buddy stopped auto-creating
+                # sightings from postcards — the user has to manually identify
+                # the bird in the BB mobile app first. Until then,
+                # sightingCreateFromPostcard returns INTERNAL_SERVER_ERROR.
+                # Don't let a single un-ready postcard fail the whole update
+                # cycle (which would lose all subsequent postcards too, since
+                # refresh_feed has already advanced its cursor past them).
+                LOGGER.warning(
+                    "Postcard %s could not be converted to a sighting (%s). "
+                    "Bird Buddy now requires manual identification in the app "
+                    "before a sighting becomes available; this postcard will "
+                    "be skipped. See README for details.",
+                    postcard.node_id,
+                    err,
+                )
+                continue
             data = slim_event_payload(postcard.data, sighting.data)
             self.hass.bus.fire(
                 event_type=EVENT_NEW_POSTCARD_SIGHTING,
