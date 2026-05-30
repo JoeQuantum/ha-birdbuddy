@@ -166,9 +166,18 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
         media = visitors.latest_media
         species = visitors.latest_species
         if media:
+            # Update state and entity_picture together so they always describe
+            # the same sighting. `species` may be None (postcard arrived but
+            # the bird wasn't recognized and had no suggestions); set state to
+            # None too rather than leaving the previous sighting's species,
+            # which is upstream issue #95 ("state lags entity_picture").
             self._latest_media = media
             self._attr_entity_picture = media.content_url
-        if species:
+            self._attr_native_value = species.name if species else None
+        elif species:
+            # No new media — usually the `_update_latest_visitor` fallback
+            # filling in species from collections without a matching media.
+            # Update just the state.
             self._attr_native_value = species.name
         self.async_write_ha_state()
 
