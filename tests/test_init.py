@@ -1,5 +1,5 @@
 """Test component setup."""
-from unittest.mock import patch, PropertyMock
+from unittest.mock import AsyncMock, patch, PropertyMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -41,8 +41,22 @@ async def test_setup_entry(hass: HomeAssistant):
         "birdbuddy.client.BirdBuddy.feeders",
         new_callable=PropertyMock,
         return_value={"feeder1": {"id": "feeder1", "name": "Test Feeder"}}
+    ), patch(
+        # RecentVisitors schedules `_update_latest_visitor` via `hass.add_job`
+        # when the first listener registers. That method walks into multiple
+        # unmocked BirdBuddy methods (feed, refresh_collections, …) and hits
+        # the network. This test asserts setup succeeds; the visitor refresh
+        # path is exercised in dedicated tests. Stub it out here so we don't
+        # need to mock every method it touches.
+        "custom_components.birdbuddy_plus.visitors.RecentVisitors._update_latest_visitor",
+        new=AsyncMock(return_value=None),
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
+        # Tear down the entry inside the patch block so the coordinator's
+        # periodic refresh timer can't fire against real aiohttp/aiodns after
+        # the mocks release.
+        await hass.config_entries.async_unload(config_entry.entry_id)
+        await hass.async_block_till_done()
 
 
 async def test_setup_entry_no_feeders(hass: HomeAssistant):

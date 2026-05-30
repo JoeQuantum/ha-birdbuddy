@@ -1,5 +1,5 @@
 """Test the Bird Buddy config flow."""
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, AsyncMock, patch, PropertyMock
 
 from birdbuddy.sightings import SightingFinishStrategy
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -14,6 +14,33 @@ from custom_components.birdbuddy_plus.const import (
     DOMAIN,
     SERVICE_COLLECT_POSTCARD,
 )
+
+
+@pytest.fixture(autouse=True)
+def _mock_birdbuddy_setup():
+    """Block any real aiohttp/aiodns activity during integration setup.
+
+    Without these patches, async_setup_component triggers async_setup_entry,
+    which constructs a real BirdBuddy client and (lazily) an aiohttp session.
+    The session's cleanup spawns a `_run_safe_shutdown_loop` thread that
+    outlives the test and trips pytest_homeassistant_custom_component's
+    `verify_cleanup` fixture (no lingering-thread fixture exists to whitelist
+    it). The visitor-update path also touches several library methods, so we
+    stub it whole.
+    """
+    with patch(
+        "birdbuddy.client.BirdBuddy.refresh", return_value=True
+    ), patch(
+        "birdbuddy.client.BirdBuddy.refresh_feed", return_value=[]
+    ), patch(
+        "birdbuddy.client.BirdBuddy.feeders",
+        new_callable=PropertyMock,
+        return_value={"feeder id": {"id": "feeder id", "name": "Feeder"}},
+    ), patch(
+        "custom_components.birdbuddy_plus.visitors.RecentVisitors._update_latest_visitor",
+        new=AsyncMock(return_value=None),
+    ):
+        yield
 
 
 async def test_services(hass):  # , config_entry):
@@ -129,3 +156,9 @@ async def test_services(hass):  # , config_entry):
             confidence_threshold=7,
             share_media=True,
         )
+
+    # Unload while the autouse mocks are still active so the coordinator's
+    # aiohttp session and periodic-refresh timer are cleaned up before the
+    # hass fixture's verify_cleanup runs.
+    await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.async_block_till_done()
