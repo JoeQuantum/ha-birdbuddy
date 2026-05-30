@@ -1,5 +1,5 @@
 """Test component setup."""
-from unittest.mock import patch, PropertyMock
+from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -10,6 +10,13 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.birdbuddy_plus.const import DOMAIN
+
+
+def _empty_feed_mock():
+    """Stub for BirdBuddy.feed() — returns something with a .filter() returning []."""
+    feed = MagicMock()
+    feed.filter.return_value = []
+    return feed
 
 
 @pytest.fixture(name="expected_lingering_timers")
@@ -38,15 +45,19 @@ async def test_setup_entry(hass: HomeAssistant):
         "birdbuddy.client.BirdBuddy.refresh_feed",
         return_value=[],
     ), patch(
+        "birdbuddy.client.BirdBuddy.feed",
+        return_value=_empty_feed_mock(),
+    ), patch(
         "birdbuddy.client.BirdBuddy.feeders",
         new_callable=PropertyMock,
         return_value={"feeder1": {"id": "feeder1", "name": "Test Feeder"}}
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
         # Tear down the entry inside the patch block. The coordinator schedules
-        # a periodic refresh, and if that timer fires after the mocks are
-        # released it tries a real BirdBuddy.refresh() → aiohttp → aiodns,
-        # which crashes during pytest teardown on some aiodns/pycares pairs.
+        # a periodic refresh AND RecentVisitors schedules `_update_latest_visitor`
+        # via `hass.add_job` when the first listener registers; both can run
+        # after the patch block exits if not torn down here, hitting real
+        # aiohttp → aiodns (which crashes on some aiodns/pycares version pairs).
         await hass.config_entries.async_unload(config_entry.entry_id)
         await hass.async_block_till_done()
 
