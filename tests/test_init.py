@@ -43,6 +43,12 @@ async def test_setup_entry(hass: HomeAssistant):
         return_value={"feeder1": {"id": "feeder1", "name": "Test Feeder"}}
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
+        # Tear down the entry inside the patch block. The coordinator schedules
+        # a periodic refresh, and if that timer fires after the mocks are
+        # released it tries a real BirdBuddy.refresh() → aiohttp → aiodns,
+        # which crashes during pytest teardown on some aiodns/pycares pairs.
+        await hass.config_entries.async_unload(config_entry.entry_id)
+        await hass.async_block_till_done()
 
 
 async def test_setup_entry_no_feeders(hass: HomeAssistant):
