@@ -7,7 +7,7 @@ from .const import DOMAIN, MANUFACTURER
 
 # Bird Buddy's official product names for each housing form factor.
 _HOUSING_NAMES: dict[FeederHousingType, str] = {
-    FeederHousingType.CLASSIC: "The Birdbuddy Feeder",
+    FeederHousingType.CLASSIC: "Birdbuddy Feeder",
     FeederHousingType.HUMMINGBIRD: "Smart Hummingbird Feeder",
     FeederHousingType.BIRD_BATH: "Smart Bird Bath",
 }
