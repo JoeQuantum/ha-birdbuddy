@@ -1,17 +1,15 @@
 """Bird Buddy device"""
 
 from homeassistant.helpers.entity import DeviceInfo
-from birdbuddy.feeder import Feeder, FeederDeviceVersion
+from birdbuddy.feeder import Feeder, FeederDeviceVersion, FeederHousingType
 from .const import DOMAIN, MANUFACTURER
 
 
-# V1 is the original Bird Buddy; V1_PRO and V2 friendly names are inferred
-# from Bird Buddy marketing and may need adjustment when official naming
-# is confirmed.
-_MODEL_NAMES: dict[FeederDeviceVersion, str] = {
-    FeederDeviceVersion.V1: "Bird Buddy",
-    FeederDeviceVersion.V1_PRO: "Bird Buddy Pro",
-    FeederDeviceVersion.V2: "Bird Buddy 2",
+# Bird Buddy's official product names for each housing form factor.
+_HOUSING_NAMES: dict[FeederHousingType, str] = {
+    FeederHousingType.CLASSIC: "The Birdbuddy Feeder",
+    FeederHousingType.HUMMINGBIRD: "Smart Hummingbird Feeder",
+    FeederHousingType.BIRD_BATH: "Smart Bird Bath",
 }
 
 
@@ -24,7 +22,13 @@ class BirdBuddyDevice(Feeder):
         return DeviceInfo(
             identifiers={(DOMAIN, self.id)},
             manufacturer=MANUFACTURER,
-            model=_MODEL_NAMES.get(self.device_version, "Bird Buddy"),
+            model=_HOUSING_NAMES.get(self.housing_type, "Bird Buddy"),
+            model_id=(
+                self.housing_type.value
+                if self.housing_type
+                and self.housing_type != FeederHousingType.UNKNOWN
+                else None
+            ),
             name=self.name,
             sw_version=self.get("firmwareVersion", None),
             hw_version=(
