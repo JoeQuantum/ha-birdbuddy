@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import DOMAIN, EVENT_NEW_POSTCARD_SIGHTING, LOGGER, POLLING_INTERVAL
 from .device import BirdBuddyDevice
+from .util import slim_event_payload
 from .visitors import RecentVisitors, VisitorCallback
 
 
@@ -96,10 +97,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             # be done. Similarly, we can supply some default blueprints to handle this with
             # user input.
             sighting = await self.client.sighting_from_postcard(postcard=postcard)
-            data = {
-                "postcard": postcard.data,
-                "sighting": sighting.data,
-            }
+            data = slim_event_payload(postcard.data, sighting.data)
             self.hass.bus.fire(
                 event_type=EVENT_NEW_POSTCARD_SIGHTING,
                 event_data=data,

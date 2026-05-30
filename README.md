@@ -103,19 +103,29 @@ Bird species and sightings that have _already been collected_ from postcards can
 
 This event is fired when a new postcard is detected in the feed.
 
-| Field      | Description                                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------------------- |
-| `postcard` | The `FeedNode` data for the `FeedItemNewPostcard` type.                                                              |
-| `sighting` | The `PostcardSighting` data, containing information about the sighting, potential species info, and images captured. |
+> **Note (fix for upstream [#78](https://github.com/jhansche/ha-birdbuddy/issues/78))**
+>
+> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. Bird Buddy Plus slims the payload before firing — the resulting event is typically <10 KB.
 
-Some interesting fields from `sighting` include:
+| Field      | Description                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
+| `postcard` | `{id, __typename, createdAt}` — just enough to reference the postcard.                                   |
+| `sighting` | Slim view of `PostcardSighting`; see fields below.                                                        |
 
-- `sighting.medias[].contentUrl`, `.thumbnailUrl` — time-sensitive URLs that can be used to download the associated sighting image(s)
-- `sighting.sightingReport.sightings[]` — list of sightings grouped together in the postcard
-  - The data here depends on the type of sighting (i.e., `SightingRecognizedBird`, `SightingCantDecideWhichBird`, etc.)
-  - Possible fields include `.suggestions` if the bird is not recognized, or `.species` for confidently recognized birds
-- `sighting.feeder.id` — not generally useful as-is, but can be used to filter automations to those matching the specified Feeder.
-  This filter is applied automatically with the Device Trigger.
+`sighting` contains:
+
+- `sighting.feeder` — `{id, name}` only. Use `id` to filter automations to a specific feeder (the Device Trigger does this automatically).
+- `sighting.coverMedia` — `{id, __typename, thumbnailUrl, contentUrl}` for the first (representative) image. Time-sensitive signed URLs. Use the Recent Visitor entity's `entity_picture` for a persistent reference instead.
+- `sighting.videoMedia` — `{id, __typename}` when a video is available (id is sufficient for `collect_postcard`).
+- `sighting.sightingReport`:
+  - `.reportToken` — opaque signed token; required by `collect_postcard`.
+  - `.sightings[]` — list of sightings grouped together in the postcard. Each entry has:
+    - `id`, `__typename` (e.g. `SightingRecognizedBird`, `SightingCantDecideWhichBird`)
+    - `matchTokens[]`
+    - `species` — `{id, __typename, name, iconUrl}` for the recognized species
+    - `suggestions[]` — alternative species the AI considered. Each `{id, __typename, species: {id, __typename, name}}`. `iconUrl` is intentionally dropped from suggestions to stay under the recorder cap (each signed URL is ~600-900 bytes and there can be 5-10 suggestions per sighting).
+
+The slim payload preserves everything `birdbuddy_plus.collect_postcard` needs, so pass-through blueprints and automations continue to work.
 
 This event data can also be passed through as-is to the [`birdbuddy_plus.collect_postcard`](#birdbuddy_pluscollect_postcard) service.
 
