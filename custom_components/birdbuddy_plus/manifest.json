@@ -1,24 +1,24 @@
 {
-  "domain": "birdbuddy",
-  "name": "Bird Buddy",
+  "domain": "birdbuddy_plus",
+  "name": "Bird Buddy Plus",
   "codeowners": [
-    "@jhansche"
+    "@JoeQuantum"
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/jhansche/ha-birdbuddy/blob/main/README.md",
+  "documentation": "https://github.com/JoeQuantum/ha-birdbuddy/blob/main/README.md",
   "homekit": {},
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/jhansche/ha-birdbuddy/issues",
+  "issue_tracker": "https://github.com/JoeQuantum/ha-birdbuddy/issues",
   "loggers": [
-    "birdbuddy",
-    "pybirdbuddy"
+    "custom_components.birdbuddy_plus",
+    "birdbuddy"
   ],
   "requirements": [
     "python-graphql-client==0.4.3",
     "pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@schema-refresh-2026-05"
   ],
   "ssdp": [],
-  "version": "0.0.24",
+  "version": "0.1.0",
   "zeroconf": []
 }

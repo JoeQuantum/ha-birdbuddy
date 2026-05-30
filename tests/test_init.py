@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
 
-from custom_components.birdbuddy.const import DOMAIN
+from custom_components.birdbuddy_plus.const import DOMAIN
 
 
 @pytest.fixture(name="expected_lingering_timers")
@@ -28,7 +28,7 @@ async def test_setup_entry(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(
@@ -50,7 +50,7 @@ async def test_setup_entry_no_feeders(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(
@@ -69,7 +69,7 @@ async def test_setup_entry_refresh_fails(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(

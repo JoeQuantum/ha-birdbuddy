@@ -2,7 +2,7 @@
 
 # From manifest.json
 python-graphql-client==0.4.3
--e git+https://github.com/jhansche/pybirdbuddy.git@main#egg=pybirdbuddy
+-e git+https://github.com/JoeQuantum/pybirdbuddy.git@schema-refresh-2026-05#egg=pybirdbuddy
 
 # for tests
 # For Python 3.12 and above

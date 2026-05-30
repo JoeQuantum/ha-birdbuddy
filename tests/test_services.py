@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 from voluptuous.error import MultipleInvalid
 
-from custom_components.birdbuddy.const import (
+from custom_components.birdbuddy_plus.const import (
     DOMAIN,
     SERVICE_COLLECT_POSTCARD,
 )

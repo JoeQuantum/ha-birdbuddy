@@ -6,7 +6,7 @@ from homeassistant.helpers import config_validation as cv
 import logging
 import voluptuous as vol
 
-DOMAIN = "birdbuddy"
+DOMAIN = "birdbuddy_plus"
 LOGGER = logging.getLogger(__package__)
 MANUFACTURER = "Bird Buddy, Inc."
 

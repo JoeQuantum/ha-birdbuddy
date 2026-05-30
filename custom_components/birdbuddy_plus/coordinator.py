@@ -138,7 +138,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         return self.client
 
     async def handle_collect_postcard(self, data: dict[str, any]) -> bool:
-        """Handle the `birdbuddy.collect_postcard` service call."""
+        """Handle the `birdbuddy_plus.collect_postcard` service call."""
         sighting = PostcardSighting(data["sighting"])
         postcard_id = data["postcard"]["id"]
         strategy = SightingFinishStrategy(data.get("strategy", "recognized"))

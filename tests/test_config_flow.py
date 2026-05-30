@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.birdbuddy.const import DOMAIN
+from custom_components.birdbuddy_plus.const import DOMAIN
 
 
 async def test_form(hass: HomeAssistant) -> None:
@@ -23,7 +23,7 @@ async def test_form(hass: HomeAssistant) -> None:
         new_callable=PropertyMock,
         return_value=BirdBuddyUser({"name": "Test User"}),
     ), patch(
-        "custom_components.birdbuddy.async_setup_entry",
+        "custom_components.birdbuddy_plus.async_setup_entry",
         return_value=True,
     ) as mock_setup_entry:
         result2 = await hass.config_entries.flow.async_configure(

@@ -5,7 +5,7 @@ collect_postcard:
   #   device:
   #     # Technically we don't care about Feeder, just account...
   #     # But associating a device lets us look up the coordinator and client
-  #     integration: birdbuddy
+  #     integration: birdbuddy_plus
   fields:
     strategy:
       name: Strategy for collecting the postcard
