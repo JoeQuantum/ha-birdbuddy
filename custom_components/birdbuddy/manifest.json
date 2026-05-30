@@ -1,6 +1,6 @@
 {
-  "domain": "birdbuddy_plus",
-  "name": "Bird Buddy Plus",
+  "domain": "birdbuddy",
+  "name": "Bird Buddy",
   "codeowners": [
     "@JoeQuantum"
   ],
@@ -11,7 +11,7 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/JoeQuantum/ha-birdbuddy/issues",
   "loggers": [
-    "custom_components.birdbuddy_plus",
+    "custom_components.birdbuddy",
     "birdbuddy"
   ],
   "requirements": [

@@ -10,8 +10,8 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
 
-from custom_components.birdbuddy_plus import _async_migrate_enabled_defaults
-from custom_components.birdbuddy_plus.const import DOMAIN
+from custom_components.birdbuddy import _async_migrate_enabled_defaults
+from custom_components.birdbuddy.const import DOMAIN
 
 
 @pytest.fixture(name="expected_lingering_timers")
@@ -30,7 +30,7 @@ async def test_setup_entry(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(
@@ -50,7 +50,7 @@ async def test_setup_entry(hass: HomeAssistant):
         # the network. This test asserts setup succeeds; the visitor refresh
         # path is exercised in dedicated tests. Stub it out here so we don't
         # need to mock every method it touches.
-        "custom_components.birdbuddy_plus.visitors.RecentVisitors._update_latest_visitor",
+        "custom_components.birdbuddy.visitors.RecentVisitors._update_latest_visitor",
         new=AsyncMock(return_value=None),
     ):
         assert await hass.config_entries.async_setup(config_entry.entry_id)
@@ -66,7 +66,7 @@ async def test_setup_entry_no_feeders(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(
@@ -85,7 +85,7 @@ async def test_setup_entry_refresh_fails(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(domain="birdbuddy_plus", data=config, state=ConfigEntryState.NOT_LOADED)
+    config_entry = MockConfigEntry(domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED)
     config_entry.add_to_hass(hass)
 
     with patch(

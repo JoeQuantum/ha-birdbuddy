@@ -1,11 +1,11 @@
-"""Tests for custom_components.birdbuddy_plus.sensor."""
+"""Tests for custom_components.birdbuddy.sensor."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from custom_components.birdbuddy_plus.sensor import BirdBuddyRecentVisitorEntity
+from custom_components.birdbuddy.sensor import BirdBuddyRecentVisitorEntity
 
 
 def _make_sensor() -> BirdBuddyRecentVisitorEntity:

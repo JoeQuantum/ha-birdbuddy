@@ -1,4 +1,4 @@
-"""Tests for custom_components.birdbuddy_plus.coordinator."""
+"""Tests for custom_components.birdbuddy.coordinator."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 from birdbuddy.exceptions import GraphqlError
 from birdbuddy.feed import FeedNodeType
 
-from custom_components.birdbuddy_plus.const import EVENT_NEW_POSTCARD_SIGHTING
-from custom_components.birdbuddy_plus.coordinator import BirdBuddyDataUpdateCoordinator
+from custom_components.birdbuddy.const import EVENT_NEW_POSTCARD_SIGHTING
+from custom_components.birdbuddy.coordinator import BirdBuddyDataUpdateCoordinator
 
 
 def _make_coordinator(*, listener_count: int = 1) -> BirdBuddyDataUpdateCoordinator:

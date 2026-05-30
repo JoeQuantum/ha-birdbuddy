@@ -63,7 +63,7 @@ def slim_event_payload(postcard_data: dict, sighting_data: dict) -> dict:
     postcard sighting routinely exceed that because of nested media URL lists,
     deep feeder context, locale-translated species text, and the full
     suggestions tree. This drops everything not needed by either:
-      a) the `birdbuddy_plus.collect_postcard` service handler, or
+      a) the `birdbuddy.collect_postcard` service handler, or
       b) common automation use-cases (filter by feeder, show the bird image).
     """
     feeder = sighting_data.get("feeder") or {}

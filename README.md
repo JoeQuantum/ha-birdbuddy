@@ -6,23 +6,13 @@ This component uses the [`pybirdbuddy`](https://github.com/JoeQuantum/pybirdbudd
 
 ## Relation to upstream
 
-This is a **hard fork** with a distinct integration domain (`birdbuddy_plus`), so it can be installed alongside the original `jhansche/ha-birdbuddy` integration — both can run on the same Home Assistant instance against the same Bird Buddy account, which makes it easy to A/B compare.
+This is a domain-compatible community fork of [`jhansche/ha-birdbuddy`](https://github.com/jhansche/ha-birdbuddy). It uses the same integration domain (`birdbuddy`), so it **replaces** the upstream integration — the two cannot be installed alongside each other on the same Home Assistant instance.
 
 All credit for the original design and code belongs to [Joe Hansche](https://github.com/jhansche). Improvements in this fork aim to be contributed back upstream where appropriate.
 
-## Migrating from `jhansche/ha-birdbuddy`
+## Migrating from upstream `jhansche/ha-birdbuddy`
 
-Because the domain changed, **none of your existing entities, automations, blueprints, or scripts will auto-migrate.** Things to update if you're switching:
-
-| Old | New |
-| --- | --- |
-| Domain | `birdbuddy` → `birdbuddy_plus` |
-| Event | `birdbuddy_new_postcard_sighting` → `birdbuddy_plus_new_postcard_sighting` |
-| Service | `birdbuddy.collect_postcard` → `birdbuddy_plus.collect_postcard` |
-| Device trigger `domain` | `birdbuddy` → `birdbuddy_plus` |
-| Entity IDs | `<type>.<feeder>_<thing>` → `<type>.<feeder>_<thing>_2` (if upstream is also installed; HA suffixes duplicates) |
-
-You can keep upstream installed during the transition — they don't conflict.
+This fork is a drop-in replacement: same domain, same entity IDs, same event/service names. **You must uninstall the upstream integration first** — both register the `birdbuddy` domain and HA will not load two integrations with the same domain. Existing automations, blueprints, and dashboard cards that reference `birdbuddy_*` entities, `birdbuddy_new_postcard_sighting` events, or the `birdbuddy.collect_postcard` service will keep working after the swap.
 
 ## Prior to installation
 
@@ -48,7 +38,7 @@ You will need your Bird Buddy `email` and `password`.
 
 1. Open HACS Settings and add this repository (`https://github.com/JoeQuantum/ha-birdbuddy/`)
    as a Custom Repository (use **Integration** as the category).
-2. The `Bird Buddy Plus` page should automatically load (or find it in the HACS Store).
+2. The `Bird Buddy` page should automatically load (or find it in the HACS Store).
 3. Click `Install`.
 4. Continue to [Setup](#setup).
 
@@ -58,18 +48,18 @@ Alternatively, click the button below to add the repository:
 
 ### Manual
 
-Copy the `birdbuddy_plus` directory from `custom_components` in this repository, and place it inside your Home Assistant Core installation's `custom_components` directory.
+Copy the `birdbuddy` directory from `custom_components` in this repository, and place it inside your Home Assistant Core installation's `custom_components` directory.
 
 ## Setup
 
 1. Install this integration.
 2. Navigate to the Home Assistant Integrations page (**Settings → Devices & Services**).
 3. Click the **+ Add Integration** button in the bottom-right.
-4. Search for `Bird Buddy Plus`.
+4. Search for `Bird Buddy`.
 
 Alternatively, click the button below to add the integration:
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=birdbuddy_plus)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=birdbuddy)
 
 # Devices
 
@@ -99,25 +89,27 @@ Bird species and sightings that have _already been collected_ from postcards can
 
 # Events
 
-### `birdbuddy_plus_new_postcard_sighting`
+### `birdbuddy_new_postcard_sighting`
 
-This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*. See "Postcard auto-collection" below for an important Bird Buddy behavior change.
+This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*. See "Postcard auto-collection" below for how the integration handles cases where Bird Buddy refuses the conversion.
 
 > **Note (fix for upstream [#78](https://github.com/jhansche/ha-birdbuddy/issues/78))**
 >
-> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. Bird Buddy Plus slims the payload before firing — the resulting event is typically <10 KB.
+> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. Bird Buddy slims the payload before firing — the resulting event is typically <10 KB.
 
-## Postcard auto-collection (Bird Buddy behavior change)
+## Postcard auto-collection (handling `INTERNAL_SERVER_ERROR`)
 
-As of mid-2026, Bird Buddy stopped auto-creating sightings from postcards. To process a postcard, **you have to open the Bird Buddy app and confirm/identify the bird first**. Until you do, calls to `sightingCreateFromPostcard` return `INTERNAL_SERVER_ERROR` server-side — upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98).
+The Bird Buddy API intermittently returns `INTERNAL_SERVER_ERROR` from the `sightingCreateFromPostcard` mutation — see upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98). **The root cause has not been identified.** User reports suggest it correlates with postcards that haven't been opened in the Bird Buddy app, but this has not been confirmed against the live API.
 
-What this means for the integration:
+What the integration does when the error occurs:
 
-- New postcards that haven't been identified in the app **will not fire** `birdbuddy_plus_new_postcard_sighting` (no sighting to put in the payload). You'll see a warning in HA logs naming the postcard ID.
-- Bird Buddy Plus tolerates this gracefully: it logs the warning, skips that postcard, and keeps processing the rest of the feed. The coordinator stays available — feeder state, battery, signal, etc. continue updating.
-- After you identify a bird in the BB app, the next coordinator refresh (within ~10 min) will be able to convert it to a sighting and fire the event normally, and your `collect_postcard` automation will run.
+- The failing `sightingCreateFromPostcard` call is caught.
+- A warning is logged naming the postcard ID.
+- That postcard is skipped (no `birdbuddy_new_postcard_sighting` event fires for it, so no `collect_postcard` automation runs against it).
+- The remaining postcards in the same refresh cycle are still processed.
+- The coordinator stays healthy — feeder state, battery, signal, and other entities keep updating.
 
-This is a product change on Bird Buddy's side, not an integration bug. If/when Bird Buddy restores auto-identification (or exposes an alternate API for un-identified sightings), we'll restore the previous flow.
+**Whether a skipped postcard is recoverable on a subsequent refresh has not been confirmed.** The feed cursor in the underlying library advances unconditionally during refresh, so a postcard skipped in one cycle may not reappear in later cycles even if a later attempt would succeed. Investigation is ongoing.
 
 | Field      | Description                                                                                              |
 | ---------- | -------------------------------------------------------------------------------------------------------- |
@@ -137,16 +129,16 @@ This is a product change on Bird Buddy's side, not an integration bug. If/when B
     - `species` — `{id, __typename, name, iconUrl}` for the recognized species
     - `suggestions[]` — alternative species the AI considered. Each `{id, __typename, species: {id, __typename, name}}`. `iconUrl` is intentionally dropped from suggestions to stay under the recorder cap (each signed URL is ~600-900 bytes and there can be 5-10 suggestions per sighting).
 
-The slim payload preserves everything `birdbuddy_plus.collect_postcard` needs, so pass-through blueprints and automations continue to work.
+The slim payload preserves everything `birdbuddy.collect_postcard` needs, so pass-through blueprints and automations continue to work.
 
-This event data can also be passed through as-is to the [`birdbuddy_plus.collect_postcard`](#birdbuddy_pluscollect_postcard) service.
+This event data can also be passed through as-is to the [`birdbuddy.collect_postcard`](#birdbuddycollect_postcard) service.
 
 This event can also be wired up via the "A new postcard is ready" Device Trigger:
 
 ```yaml
 trigger:
   - platform: device
-    domain: birdbuddy_plus
+    domain: birdbuddy
     type: new_postcard
     device_id: <ha device id>
     feeder_id: <bird buddy feeder id>
@@ -154,21 +146,21 @@ trigger:
 
 # Services
 
-### `birdbuddy_plus.collect_postcard`
+### `birdbuddy.collect_postcard`
 
 "Finishes" a postcard sighting by adding the media to the associated species collections, making them available in the [Media Browser](#media). This is the same effect as opening and saving the postcard in the Bird Buddy app.
 
 > **Note**
 >
 > This service _is not_ intended to be invoked manually — use it in conjunction with the
-> [`birdbuddy_plus_new_postcard_sighting`](#birdbuddy_plus_new_postcard_sighting) event, device trigger, or [Blueprint](#blueprint).
+> [`birdbuddy_new_postcard_sighting`](#birdbuddy_new_postcard_sighting) event, device trigger, or [Blueprint](#blueprint).
 >
 > Attempting to call the service manually will likely fail, because the service requires the `postcard` and `sighting` data that would be included in the event.
 
 | Service attribute data  | Optional | Description                                                                                |
 | ----------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `postcard`              | No       | Postcard data from `birdbuddy_plus_new_postcard_sighting` event                            |
-| `sighting`              | No       | Sighting data from `birdbuddy_plus_new_postcard_sighting` event                            |
+| `postcard`              | No       | Postcard data from `birdbuddy_new_postcard_sighting` event                            |
+| `sighting`              | No       | Sighting data from `birdbuddy_new_postcard_sighting` event                            |
 | `strategy`              | Yes      | Strategy for resolving the sighting (see strategies below, default: `recognized`)          |
 | `best_guess_confidence` | Yes      | Minimum confidence to support `"best_guess"` strategy (default: 10%)                       |
 | `share_media`           | Yes      | Whether the saved media will also be shared with the community (default: false)            |
@@ -184,14 +176,14 @@ Postcard sighting strategies:
 ```yaml
 trigger:
   - platform: event
-    event_type: birdbuddy_plus_new_postcard_sighting
+    event_type: birdbuddy_new_postcard_sighting
   # OR a device trigger:
   - platform: device
-    domain: birdbuddy_plus
+    domain: birdbuddy
     type: new_postcard
     # $ids...
 action:
-  - service: birdbuddy_plus.collect_postcard
+  - service: birdbuddy.collect_postcard
     data:
       strategy: best_guess
       # pass-through these 2 event fields as they are
@@ -205,12 +197,12 @@ To simplify the combination of the trigger and the action of collecting the post
 
 To add the Blueprint, use the button below:
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJoeQuantum%2Fha-birdbuddy%2Fblob%2Fmain%2Fcustom_components%2Fbirdbuddy_plus%2Fblueprints%2Fcollect_postcard.yaml)
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJoeQuantum%2Fha-birdbuddy%2Fblob%2Fmain%2Fcustom_components%2Fbirdbuddy%2Fblueprints%2Fcollect_postcard.yaml)
 
 Or go to **Settings → Automations & Scenes → Blueprints**, click the **Import Blueprint** button, and enter this URL:
 
 ```
-https://github.com/JoeQuantum/ha-birdbuddy/blob/main/custom_components/birdbuddy_plus/blueprints/collect_postcard.yaml
+https://github.com/JoeQuantum/ha-birdbuddy/blob/main/custom_components/birdbuddy/blueprints/collect_postcard.yaml
 ```
 
 After import, [create an automation from the Blueprint](https://www.home-assistant.io/docs/automation/using_blueprints/#blueprint-automations). If we update the Blueprint upstream, your imported Blueprint will not automatically receive the update — you may need to re-import.

@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 from voluptuous.error import MultipleInvalid
 
-from custom_components.birdbuddy_plus.const import (
+from custom_components.birdbuddy.const import (
     DOMAIN,
     SERVICE_COLLECT_POSTCARD,
 )
@@ -37,7 +37,7 @@ def _mock_birdbuddy_setup():
         new_callable=PropertyMock,
         return_value={"feeder id": {"id": "feeder id", "name": "Feeder"}},
     ), patch(
-        "custom_components.birdbuddy_plus.visitors.RecentVisitors._update_latest_visitor",
+        "custom_components.birdbuddy.visitors.RecentVisitors._update_latest_visitor",
         new=AsyncMock(return_value=None),
     ):
         yield

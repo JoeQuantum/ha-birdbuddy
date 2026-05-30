@@ -1,10 +1,10 @@
-"""Tests for custom_components.birdbuddy_plus.util."""
+"""Tests for custom_components.birdbuddy.util."""
 
 from __future__ import annotations
 
 import json
 
-from custom_components.birdbuddy_plus.util import slim_event_payload
+from custom_components.birdbuddy.util import slim_event_payload
 
 # HA's recorder caps event_data at 32768 bytes. We aim well under that.
 RECORDER_EVENT_CAP_BYTES = 32768
