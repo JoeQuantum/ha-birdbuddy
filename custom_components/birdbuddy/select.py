@@ -40,14 +40,6 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_entity_registry_enabled_default = False
     _attr_translation_key = "power_profile"
-    _attr_options = [
-        "frenzy_mode",
-        "standard_mode",
-        "power_saver_mode",
-        "ultra_frenzy_mode",
-    ]
-    # TODO: remove once it is verified working
-    _attr_attribution = "(This entity is incubating)"
 
     def __init__(
         self,
@@ -56,6 +48,22 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
     ) -> None:
         super().__init__(feeder, coordinator)
         self._attr_unique_id = f"{self.feeder.id}-power-profile"
+
+    @property
+    def options(self) -> list[str]:
+        """Dropdown options derived from the PowerProfile enum.
+
+        Order follows the enum definition order in pybirdbuddy. A new power
+        mode added to PowerProfile shows up here automatically — but it also
+        needs a matching key under `power_profile.state` in `strings.json`
+        (and ideally each `translations/*.json`), or HA will fall back to
+        displaying the raw value string.
+        """
+        return [
+            p.value.lower()
+            for p in PowerProfile
+            if p is not PowerProfile.UNKNOWN
+        ]
 
     @property
     def current_option(self) -> str | None:
