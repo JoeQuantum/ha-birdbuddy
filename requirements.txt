@@ -1,2 +1,2 @@
 homeassistant
-pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@v0.0.21
+pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@v0.0.22

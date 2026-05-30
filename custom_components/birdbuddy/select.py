@@ -44,6 +44,7 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
         "frenzy_mode",
         "standard_mode",
         "power_saver_mode",
+        "ultra_frenzy_mode",
     ]
     # TODO: remove once it is verified working
     _attr_attribution = "(This entity is incubating)"

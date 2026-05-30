@@ -24,7 +24,8 @@
         "state": {
           "frenzy_mode": "Frenzy Mode",
           "standard_mode": "Standard Mode",
-          "power_saver_mode": "Power Saving Mode"
+          "power_saver_mode": "Power Saving Mode",
+          "ultra_frenzy_mode": "Ultra Frenzy Mode"
         }
       },
       "metric_state": {
