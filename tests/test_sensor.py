@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from custom_components.birdbuddy.sensor import BirdBuddyRecentVisitorEntity
+from custom_components.birdbuddy.visitors import RecentVisitor
 
 
 def _make_sensor() -> BirdBuddyRecentVisitorEntity:
@@ -18,6 +20,7 @@ def _make_sensor() -> BirdBuddyRecentVisitorEntity:
     sensor._latest_media = None
     sensor._attr_entity_picture = None
     sensor._attr_native_value = None
+    sensor._recent_visitors = []
     return sensor
 
 
@@ -29,10 +32,11 @@ def _species(name: str) -> SimpleNamespace:
     return SimpleNamespace(name=name)
 
 
-def _visitors(media, species) -> MagicMock:
+def _visitors(media, species, recent: list | None = None) -> MagicMock:
     v = MagicMock()
     v.latest_media = media
     v.latest_species = species
+    v.recent = recent if recent is not None else []
     return v
 
 
@@ -112,3 +116,55 @@ def test_empty_visitors_is_a_noop() -> None:
 
     assert sensor._attr_native_value == "Previous"
     assert sensor._attr_entity_picture == "previous.jpg"
+
+
+def _recent_entry(species: str | None, url: str, when: datetime) -> RecentVisitor:
+    return RecentVisitor(
+        media=SimpleNamespace(content_url=url, thumbnail_url=url),
+        species=SimpleNamespace(name=species) if species else None,
+        created_at=when,
+    )
+
+
+def test_visitors_attribute_populated_from_recent_list() -> None:
+    """The carousel surface: sensor must expose `visitors` (list of
+    `{species, media_url, created_at}`) so dashboards/templates can read
+    the full last-N feed without subscribing to each indexed image entity."""
+    sensor = _make_sensor()
+    base = datetime(2026, 5, 30, 12, 0, 0, tzinfo=timezone.utc)
+    recent = [
+        _recent_entry("Cardinal", "https://cdn.example.com/0.jpg", base),
+        _recent_entry("Goldfinch", "https://cdn.example.com/1.jpg", base.replace(hour=11)),
+        _recent_entry(None, "https://cdn.example.com/2.jpg", base.replace(hour=10)),
+    ]
+
+    with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
+        sensor._on_recent_visitor(_visitors(recent[0].media, recent[0].species, recent))
+
+    attrs = sensor.extra_state_attributes
+    assert "visitors" in attrs
+    assert attrs["visitors"] == [
+        {
+            "species": "Cardinal",
+            "media_url": "https://cdn.example.com/0.jpg",
+            "created_at": base.isoformat(),
+        },
+        {
+            "species": "Goldfinch",
+            "media_url": "https://cdn.example.com/1.jpg",
+            "created_at": base.replace(hour=11).isoformat(),
+        },
+        {
+            "species": None,  # unrecognized sighting in the feed
+            "media_url": "https://cdn.example.com/2.jpg",
+            "created_at": base.replace(hour=10).isoformat(),
+        },
+    ]
+
+
+def test_visitors_attribute_empty_when_no_recent_data() -> None:
+    """Cold start (no visitors yet): attribute exists and is an empty list,
+    so consumers can rely on the key being present."""
+    sensor = _make_sensor()
+    attrs = sensor.extra_state_attributes
+    assert attrs == {"visitors": []}

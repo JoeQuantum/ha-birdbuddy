@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, RECENT_VISITOR_COUNT
 from .coordinator import BirdBuddyDataUpdateCoordinator
 from .device import BirdBuddyDevice
 from .entity import BirdBuddyMixin
@@ -27,6 +27,11 @@ async def async_setup_entry(
     feeders = coordinator.feeders.values()
     async_add_entities(
         BirdBuddyRecentVisitorImageEntity(hass, f, coordinator) for f in feeders
+    )
+    async_add_entities(
+        BirdBuddyIndexedRecentVisitorImageEntity(hass, f, coordinator, index=i)
+        for f in feeders
+        for i in range(2, RECENT_VISITOR_COUNT + 1)
     )
 
 
@@ -122,3 +127,71 @@ class BirdBuddyRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
             self._attr_image_url = None
             self._attr_image_last_updated = None
             self._attr_entity_picture = None
+
+
+class BirdBuddyIndexedRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
+    """Carousel position N (2..RECENT_VISITOR_COUNT) for the recent-visitor feed.
+
+    Position 1 (the latest) is owned by `BirdBuddyRecentVisitorImageEntity`.
+    These indexed entities are disabled by default so users opt in to the
+    carousel. They read from `RecentVisitors.recent`, which is rebuilt from
+    the feed each poll — so signed URLs stay fresh without per-entity
+    expiry handling.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        feeder: BirdBuddyDevice,
+        coordinator: BirdBuddyDataUpdateCoordinator,
+        index: int,
+    ) -> None:
+        """Initialize the entity at carousel position `index` (2..N)."""
+        ImageEntity.__init__(self, hass)
+        BirdBuddyMixin.__init__(self, feeder, coordinator)
+        self._index = index
+        self._attr_unique_id = f"{self.feeder.id}-recent-image-{index}"
+        self._attr_name = f"Recent Visitor Image {index}"
+
+    def image(self) -> bytes | None:
+        """Return the image bytes."""
+        # See async_image()
+        return None
+
+    async def _async_load_image_from_url(self, url: str) -> Image | None:
+        """Override content-type to image/jpeg to accept CloudFront's
+        occasional `text/plain`; mirrors BirdBuddyRecentVisitorImageEntity."""
+        if response := await self._fetch_url(url):
+            return Image(
+                content=response.content,
+                content_type="image/jpeg",
+            )
+        return None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.coordinator.add_visitor_listener(
+                self.feeder,
+                self._on_recent_visitor,
+            )
+        )
+
+    @callback
+    def _on_recent_visitor(self, visitors: RecentVisitors) -> None:
+        pos = self._index - 1
+        recent = visitors.recent
+        media = recent[pos].media if pos < len(recent) else None
+        if media and (url := media.content_url or media.thumbnail_url):
+            self._attr_image_url = url
+            self._attr_image_last_updated = recent[pos].created_at
+            self._attr_entity_picture = url
+            self._cached_image = None
+        else:
+            self._attr_image_url = None
+            self._attr_image_last_updated = None
+            self._attr_entity_picture = None
+        self.async_write_ha_state()
