@@ -76,7 +76,9 @@ A device is created for each Bird Buddy feeder associated with the account. See 
 | `Charging`       | `binary_sensor` | Whether the Bird Buddy is currently charging                                                                                                    |
 | `Off-Grid`       | `switch`        | Present and toggle Off-Grid status (owners only)                                                                                                |
 | `Power Profile`  | `select`        | Choose between Power Profile settings. NOTE: `FRENZY_MODE` appears to be a paid feature requiring an active payment subscription.               |
-| `Recent Visitor` | `sensor`        | State represents the most recent visitor's bird species name, and the `entity_picture` points to the cover media of that recent postcard visit. |
+| `Recent Visitor` | `sensor`        | State represents the most recent visitor's bird species name, and the `entity_picture` points to the cover media of that recent postcard visit. The `visitors` attribute exposes the last 5 visits as a list (`species`, `media_url`, `created_at`) for templating. |
+| `Recent Visitor Image`     | `image`         | The most recent visitor's image. Enabled by default.                                                                                  |
+| `Recent Visitor Image 2-5` | `image`         | Carousel positions 2..5 of the recent-visitor feed. Disabled by default — enable in **Settings → Devices → Bird Buddy** for the carousel dashboard cards (see below). |
 | `State`          | `sensor`        | Current state (ready, offline, etc)                                                                                                             |
 | `Signal`         | `sensor`        | Current wifi signal (RSSI)                                                                                                                      |
 | `Update`         | `update`        | Show and install Firmware updates (owners only)                                                                                                 |
@@ -88,6 +90,73 @@ More entities will be added as this fork matures.
 # Media
 
 Bird species and sightings that have _already been collected_ from postcards can be viewed in the Home Assistant Media Browser. To collect a postcard you will need to use the mobile app to open the postcards as they arrive. Only opened postcards can be viewed in the Media Browser (same as the Collections tab in the Bird Buddy app).
+
+# Dashboards
+
+> This native carousel replaces the older download-and-rotate-files automation pattern that some forum posts recommend. The integration now retains the last 5 visits with fresh signed URLs (rebuilt from the feed each poll), so a third-party carousel card can drive a slideshow directly off the entities.
+
+## Recent visitor carousel
+
+The integration exposes the most recent visitor at `image.<feeder>_recent_visitor_image` (enabled by default) and positions 2..5 at `image.<feeder>_recent_visitor_image_2` … `_5` (disabled by default — enable them under **Settings → Devices & Services → Bird Buddy → Entities**).
+
+Pair them with [Simple Swipe Card](https://github.com/nutteloost/simple-swipe-card) (actively maintained, has a built-in carousel mode and auto-swipe). The example below uses `picture-entity` cards so each slide shows the bird image and a tap action that opens the entity:
+
+```yaml
+type: custom:simple-swipe-card
+card_min_height: 240
+loop_mode: infinite
+auto_swipe: true
+swipe_interval: 5000
+cards:
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image
+    show_state: false
+    show_name: false
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image_2
+    show_state: false
+    show_name: false
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image_3
+    show_state: false
+    show_name: false
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image_4
+    show_state: false
+    show_name: false
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image_5
+    show_state: false
+    show_name: false
+```
+
+[`swipe-card-lite`](https://github.com/nutteloost/swipe-card-lite) (same author, no auto-swipe) is also a good fit if you want a manual-swipe gallery.
+
+> **Avoid `Image` cards inside the older unmaintained `custom:swipe-card`.** That combination throws `Unknown type encountered: Image` and the card silently fails to render. If you must use `swipe-card`, switch the inner cards to `picture-entity` or `picture-glance` as shown above.
+
+You can also drive a custom carousel from the `Recent Visitor` sensor's `visitors` attribute (a list of `{species, media_url, created_at}`), which is useful for templating or for cards that take a list of URLs directly.
+
+## Example dashboards
+
+A simple "what's at the feeder" panel — entities for state-at-a-glance, plus the latest visit picture for the photo:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: picture-entity
+    entity: image.backyard_recent_visitor_image
+    name: Latest visitor
+  - type: entities
+    title: Backyard feeder
+    entities:
+      - entity: sensor.backyard_recent_visitor
+        name: Most recent visitor
+      - entity: sensor.backyard_battery
+      - entity: sensor.backyard_state
+      - entity: switch.backyard_audio
+```
+
+> **Some entities are disabled by default** — `Signal Strength`, `Temperature`, `Food Level`, and the carousel positions `Recent Visitor Image 2` through `_5`. To enable any of them: **Settings → Devices & Services → Bird Buddy → (your feeder) → +N entities not shown → Enable**. (This addresses upstream docs request [#64](https://github.com/jhansche/ha-birdbuddy/issues/64).)
 
 # Events
 

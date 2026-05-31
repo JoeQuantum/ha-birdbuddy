@@ -18,6 +18,10 @@ CONF_FEEDER_ID = "feeder_id"
 TRIGGER_TYPE_POSTCARD = "new_postcard"
 EVENT_NEW_POSTCARD_SIGHTING = f"{DOMAIN}_new_postcard_sighting"
 
+# Maximum number of recent visitors to retain for the carousel surface.
+# The list is rebuilt from the feed each poll so URLs stay fresh.
+RECENT_VISITOR_COUNT = 5
+
 SERVICE_COLLECT_POSTCARD = "collect_postcard"
 SERVICE_SCHEMA_COLLECT_POSTCARD = vol.Schema(
     {

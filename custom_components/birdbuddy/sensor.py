@@ -31,7 +31,7 @@ from .coordinator import BirdBuddyDataUpdateCoordinator
 from .entity import BirdBuddyMixin
 from .device import BirdBuddyDevice
 from .util import _find_media_with_species
-from .visitors import RecentVisitors
+from .visitors import RecentVisitor, RecentVisitors
 
 
 async def async_setup_entry(
@@ -115,7 +115,6 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
     _attr_has_entity_name = True
     _attr_icon = "mdi:bird"
     _attr_name = "Recent Visitor"
-    _attr_extra_state_attributes = {}
 
     _latest_media: Media | None = None
 
@@ -126,6 +125,30 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
     ) -> None:
         super().__init__(feeder, coordinator)
         self._attr_unique_id = f"{self.feeder.id}-recent-visitor"
+        self._recent_visitors: list[RecentVisitor] = []
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any]:
+        """Expose the recent-visitor carousel as a list attribute.
+
+        Kept minimal (species, media_url, created_at) so the recorded
+        attribute payload stays well under HA's recorder cap.
+        """
+        return {
+            "visitors": [
+                {
+                    "species": entry.species.name if entry.species else None,
+                    "media_url": entry.media.content_url
+                    or entry.media.thumbnail_url,
+                    "created_at": (
+                        entry.created_at.isoformat()
+                        if hasattr(entry.created_at, "isoformat")
+                        else (str(entry.created_at) if entry.created_at else None)
+                    ),
+                }
+                for entry in self._recent_visitors
+            ],
+        }
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -162,6 +185,7 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
 
     @callback
     def _on_recent_visitor(self, visitors: RecentVisitors) -> None:
+        self._recent_visitors = list(visitors.recent)
         media = visitors.latest_media
         species = visitors.latest_species
         if media:
