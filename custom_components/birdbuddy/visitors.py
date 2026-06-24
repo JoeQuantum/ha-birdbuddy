@@ -15,7 +15,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import CALLBACK_TYPE
 
 from .const import EVENT_NEW_POSTCARD_SIGHTING, LOGGER, RECENT_VISITOR_COUNT
-from .util import _find_media_with_species
+from .util import _find_media
 
 _RecentVisitors = TypeVar("_RecentVisitors", bound="RecentVisitors")
 type VisitorCallback = Callable[[_RecentVisitors], None]
@@ -133,10 +133,14 @@ class RecentVisitors:
                 FeedNodeType.SpeciesSighting,
                 FeedNodeType.SpeciesUnlocked,
                 FeedNodeType.CollectedPostcard,
+                # Feeders without auto-ID only ever produce mystery visitors;
+                # without these the recent-visitor list is always empty (#7).
+                FeedNodeType.MysteryVisitorNotRecognized,
+                FeedNodeType.MysteryVisitorResolved,
             ],
         )
 
-        my_items = _find_media_with_species(self.feeder.id, items)
+        my_items = _find_media(self.feeder.id, items)
 
         # Rebuild the recent list from the feed each poll. Caching-and-appending
         # would let stale signed CloudFront URLs linger in the list past their

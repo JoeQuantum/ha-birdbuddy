@@ -24,7 +24,7 @@ def _feed_item(
 ) -> FeedNode:
     """Mimic a real feed entry as the integration sees it.
 
-    Wraps the raw dict in `FeedNode` because `_find_media_with_species`
+    Wraps the raw dict in `FeedNode` because `_find_media`
     preserves the type through `item | {"media": ...}` and the downstream
     code reads `item.created_at` (a FeedNode property) for sorting.
     """
@@ -51,6 +51,38 @@ def _feed_item(
                     "iconUrl": f"https://icon.example.com/{species_id}",
                 }
             ],
+        }
+    )
+
+
+def _mystery_feed_item(
+    *,
+    feeder_id: str = "f1",
+    media_id: str,
+    media_url: str,
+    created_at: datetime,
+) -> FeedNode:
+    """Mimic a mystery (unrecognized) visitor feed entry.
+
+    This is what a feeder *without* auto-ID produces: an image but no
+    `species`. Modeled on `FeedItemMysteryVisitorNotRecognized`. See issue #7.
+    """
+    return FeedNode(
+        {
+            "__typename": "FeedItemMysteryVisitorNotRecognized",
+            "createdAt": created_at.isoformat(),
+            "medias": [
+                {
+                    "__typename": "MediaImage",
+                    "id": media_id,
+                    "contentUrl": media_url,
+                    "thumbnailUrl": (
+                        f"https://thumb.example.com/{feeder_id}/{media_id}"
+                    ),
+                    "createdAt": created_at.isoformat(),
+                }
+            ],
+            # No "species" key at all — the defining trait of a mystery visitor.
         }
     )
 
@@ -319,6 +351,78 @@ def test_rebuild_replaces_stale_entries_each_poll() -> None:
     asyncio.run(visitors._update_latest_visitor())
     assert len(visitors.recent) == 1
     assert visitors.recent[0].species.name == "Bird0"
+
+
+def test_mystery_visitors_surface_with_none_species() -> None:
+    """Regression for #7: a feeder without auto-ID only produces mystery
+    visitors (image, no species). They must populate `recent` with
+    `species=None` and surface their media, not be filtered out — otherwise
+    the recent_visitor sensor reports no visitors and a blank image."""
+    visitors = _make_visitors(count=3)
+
+    base = datetime(2026, 6, 23, 12, 0, 0, tzinfo=timezone.utc)
+    items = [
+        _mystery_feed_item(
+            media_id="mm1",
+            media_url="https://cdn.example.com/mystery1.jpg",
+            created_at=base.replace(hour=13),
+        ),
+        _mystery_feed_item(
+            media_id="mm2",
+            media_url="https://cdn.example.com/mystery2.jpg",
+            created_at=base.replace(hour=11),
+        ),
+    ]
+    feed = MagicMock()
+    feed.filter.return_value = items
+    visitors.client.feed = AsyncMock(return_value=feed)
+
+    asyncio.run(visitors._update_latest_visitor())
+
+    assert len(visitors.recent) == 2
+    assert all(v.species is None for v in visitors.recent)
+    # Newest-first, and media is present so the image entity has something.
+    assert visitors.latest_media.content_url == "https://cdn.example.com/mystery1.jpg"
+    assert visitors.latest_species is None
+
+
+def test_mixed_recognized_and_mystery_visitors_coexist() -> None:
+    """A partly-recognized feed (some auto-ID hits, some mysteries) must keep
+    both kinds in timestamp order — the species filter must not silently drop
+    the unrecognized ones."""
+    visitors = _make_visitors(count=5)
+
+    base = datetime(2026, 6, 23, 12, 0, 0, tzinfo=timezone.utc)
+    items = [
+        _feed_item(
+            species_id="s1",
+            species_name="Cardinal",
+            media_id="m1",
+            media_url="https://cdn.example.com/m1.jpg",
+            created_at=base.replace(hour=13),
+        ),
+        _mystery_feed_item(
+            media_id="mm1",
+            media_url="https://cdn.example.com/mystery1.jpg",
+            created_at=base.replace(hour=12),
+        ),
+        _feed_item(
+            species_id="s2",
+            species_name="Goldfinch",
+            media_id="m2",
+            media_url="https://cdn.example.com/m2.jpg",
+            created_at=base.replace(hour=11),
+        ),
+    ]
+    feed = MagicMock()
+    feed.filter.return_value = items
+    visitors.client.feed = AsyncMock(return_value=feed)
+
+    asyncio.run(visitors._update_latest_visitor())
+
+    assert len(visitors.recent) == 3
+    names = [v.species.name if v.species else None for v in visitors.recent]
+    assert names == ["Cardinal", None, "Goldfinch"]
 
 
 def test_recent_entries_are_serializable_to_sensor_attribute_shape() -> None:
