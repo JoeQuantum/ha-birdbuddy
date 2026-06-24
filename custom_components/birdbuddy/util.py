@@ -3,7 +3,13 @@
 from birdbuddy.feed import FeedNode
 
 
-def _find_media_with_species(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
+def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
+    """Return feed items that carry an image from this feeder.
+
+    A `species` is NOT required: mystery (unrecognized) visitors — the only
+    kind a feeder without auto-ID produces — have media but no species, and
+    must still surface as recent visitors with `species=None`. See issue #7.
+    """
     return [
         item | {"media": next(iter(medias), None)}
         for item in items
@@ -16,7 +22,6 @@ def _find_media_with_species(feeder_id: str, items: list[FeedNode]) -> list[Feed
                 and feeder_id in m.get("thumbnailUrl", "")
             ]
         )
-        and item.get("species", None)
     ]
 
 

@@ -30,7 +30,6 @@ from .const import DOMAIN, EVENT_NEW_POSTCARD_SIGHTING, LOGGER
 from .coordinator import BirdBuddyDataUpdateCoordinator
 from .entity import BirdBuddyMixin
 from .device import BirdBuddyDevice
-from .util import _find_media_with_species
 from .visitors import RecentVisitor, RecentVisitors
 
 
