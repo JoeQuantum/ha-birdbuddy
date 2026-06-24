@@ -111,6 +111,49 @@ def test_failing_postcard_doesnt_raise() -> None:
     coordinator.hass.bus.fire.assert_not_called()
 
 
+def _make_poll_coordinator() -> BirdBuddyDataUpdateCoordinator:
+    """A coordinator wired just enough to run `_async_update_data` once,
+    skipping the feed-processing branch (first_update=True)."""
+    coordinator = object.__new__(BirdBuddyDataUpdateCoordinator)
+    coordinator.client = MagicMock()
+    coordinator.client.refresh = AsyncMock(return_value=True)
+    coordinator.client.feeders = {"f1": {"id": "f1", "name": "Backyard"}}
+    coordinator.hass = MagicMock()
+    coordinator.feeders = {}
+    coordinator.visitors = {}
+    coordinator.first_update = True  # skip _process_feed for this test
+    return coordinator
+
+
+def test_poll_refreshes_recent_visitors() -> None:
+    """Regression for #7: the recent-visitor surface must refresh on every
+    poll. For feeders without auto-ID the event-driven path never fires (their
+    postcards can't convert to sightings), so polling is the only way mystery
+    visitors surface after startup."""
+    coordinator = _make_poll_coordinator()
+    visitors = MagicMock()
+    visitors.async_update = AsyncMock()
+    coordinator.visitors = {"f1": visitors}
+
+    asyncio.run(coordinator._async_update_data())
+
+    visitors.async_update.assert_awaited_once()
+
+
+def test_poll_visitor_refresh_failure_doesnt_fail_update() -> None:
+    """A recent-visitor refresh error must not fail the whole coordinator
+    update — feeder battery/signal/state have nothing to do with the feed."""
+    coordinator = _make_poll_coordinator()
+    visitors = MagicMock()
+    visitors.async_update = AsyncMock(side_effect=RuntimeError("feed boom"))
+    coordinator.visitors = {"f1": visitors}
+
+    result = asyncio.run(coordinator._async_update_data())
+
+    assert result is coordinator.client
+    visitors.async_update.assert_awaited_once()
+
+
 def test_no_listeners_skips_sighting_conversion() -> None:
     """If no automation is listening for the event, we shouldn't call
     sightingCreateFromPostcard at all (saves an API call AND avoids the #98

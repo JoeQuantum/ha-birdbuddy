@@ -125,6 +125,16 @@ class RecentVisitors:
             event_filter=filter_my_postcards,
         )
 
+    async def async_update(self) -> None:
+        """Refresh the recent-visitor list from the feed (poll-driven).
+
+        Called by the coordinator on every poll. This is the *only* refresh
+        path that works for feeders without auto-ID: their visits arrive as
+        postcards that can't be converted to sightings, so the event-driven
+        path (`_on_new_postcard`) never fires for them. See issue #7.
+        """
+        await self._update_latest_visitor()
+
     async def _update_latest_visitor(self) -> None:
         feed = await self.client.feed()
 

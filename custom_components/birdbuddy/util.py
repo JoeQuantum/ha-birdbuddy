@@ -2,6 +2,25 @@
 
 from birdbuddy.feed import FeedNode
 
+from .const import LOGGER
+
+
+def _media_list(item: FeedNode) -> list[dict]:
+    """Return the media dicts on a feed node, normalizing the two API shapes.
+
+    pybirdbuddy's FEED query returns media differently depending on the node
+    type: `FeedItemSpeciesSighting` and `FeedItemMysteryVisitor*` expose a
+    single `media` object, while `FeedItemCollectedPostcard` exposes a `medias`
+    array. Earlier code only read the `medias` array, so sighting and mystery
+    nodes — the *only* kind a feeder without auto-ID ever produces — never
+    matched and the recent-visitor list always came back empty (#7).
+    """
+    if medias := item.get("medias"):
+        return list(medias)
+    if media := item.get("media"):
+        return [media]
+    return []
+
 
 def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
     """Return feed items that carry an image from this feeder.
@@ -9,20 +28,37 @@ def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
     A `species` is NOT required: mystery (unrecognized) visitors — the only
     kind a feeder without auto-ID produces — have media but no species, and
     must still surface as recent visitors with `species=None`. See issue #7.
+
+    The single matched image is attached back onto the node as `media`.
     """
-    return [
-        item | {"media": next(iter(medias), None)}
-        for item in items
-        if item
-        and (
-            medias := [
-                m
-                for m in item.get("medias", [])
-                if m.get("__typename") == "MediaImage"
-                and feeder_id in m.get("thumbnailUrl", "")
-            ]
-        )
-    ]
+    found: list[FeedNode] = []
+    for item in items:
+        if not item:
+            continue
+        images = [
+            m
+            for m in _media_list(item)
+            if m and m.get("__typename") == "MediaImage"
+        ]
+        if not images:
+            continue
+        mine = [m for m in images if feeder_id in m.get("thumbnailUrl", "")]
+        if not mine:
+            # The feed has no per-item feeder field, so we attribute media to a
+            # feeder by matching its id in the (signed) thumbnail URL. If images
+            # are present but none match, log it — this is the most likely place
+            # a still-empty recent-visitor list would originate.
+            LOGGER.debug(
+                "Feed node %s has %d image(s) but none match feeder %s by URL; "
+                "skipping. First thumbnail: %s",
+                item.get("id"),
+                len(images),
+                feeder_id,
+                images[0].get("thumbnailUrl"),
+            )
+            continue
+        found.append(item | {"media": next(iter(mine), None)})
+    return found
 
 
 _SPECIES_KEYS_FULL = ("id", "__typename", "name", "iconUrl")

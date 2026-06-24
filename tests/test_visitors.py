@@ -27,22 +27,25 @@ def _feed_item(
     Wraps the raw dict in `FeedNode` because `_find_media`
     preserves the type through `item | {"media": ...}` and the downstream
     code reads `item.created_at` (a FeedNode property) for sorting.
+
+    A real `FeedItemSpeciesSighting` carries a *singular* `media` object (see
+    pybirdbuddy's FEED query), not a `medias` array — only collected-postcard
+    nodes use the array. The earlier fixtures used the array shape, which is why
+    CI was green while real sighting/mystery feeds came back empty (#7).
     """
     return FeedNode(
         {
             "__typename": "FeedItemSpeciesSighting",
             "createdAt": created_at.isoformat(),
-            "medias": [
-                {
-                    "__typename": "MediaImage",
-                    "id": media_id,
-                    "contentUrl": media_url,
-                    "thumbnailUrl": (
-                        f"https://thumb.example.com/{feeder_id}/{media_id}"
-                    ),
-                    "createdAt": created_at.isoformat(),
-                }
-            ],
+            "media": {
+                "__typename": "MediaImage",
+                "id": media_id,
+                "contentUrl": media_url,
+                "thumbnailUrl": (
+                    f"https://thumb.example.com/{feeder_id}/{media_id}"
+                ),
+                "createdAt": created_at.isoformat(),
+            },
             "species": [
                 {
                     "__typename": "SpeciesBird",
@@ -66,22 +69,24 @@ def _mystery_feed_item(
 
     This is what a feeder *without* auto-ID produces: an image but no
     `species`. Modeled on `FeedItemMysteryVisitorNotRecognized`. See issue #7.
+
+    Like a species sighting, a real mystery-visitor node carries a *singular*
+    `media` object (pybirdbuddy `MysteryVisitorNotRecognizedFields`), not a
+    `medias` array.
     """
     return FeedNode(
         {
             "__typename": "FeedItemMysteryVisitorNotRecognized",
             "createdAt": created_at.isoformat(),
-            "medias": [
-                {
-                    "__typename": "MediaImage",
-                    "id": media_id,
-                    "contentUrl": media_url,
-                    "thumbnailUrl": (
-                        f"https://thumb.example.com/{feeder_id}/{media_id}"
-                    ),
-                    "createdAt": created_at.isoformat(),
-                }
-            ],
+            "media": {
+                "__typename": "MediaImage",
+                "id": media_id,
+                "contentUrl": media_url,
+                "thumbnailUrl": (
+                    f"https://thumb.example.com/{feeder_id}/{media_id}"
+                ),
+                "createdAt": created_at.isoformat(),
+            },
             # No "species" key at all — the defining trait of a mystery visitor.
         }
     )

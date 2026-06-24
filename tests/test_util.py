@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 
-from custom_components.birdbuddy.util import slim_event_payload
+from birdbuddy.feed import FeedNode
+
+from custom_components.birdbuddy.util import _find_media, slim_event_payload
 
 # HA's recorder caps event_data at 32768 bytes. We aim well under that.
 RECORDER_EVENT_CAP_BYTES = 32768
@@ -201,3 +203,74 @@ def test_slim_handles_missing_medias_and_video() -> None:
     slim = slim_event_payload(postcard, sighting)
     assert "coverMedia" not in slim["sighting"]
     assert "videoMedia" not in slim["sighting"]
+
+
+# --- _find_media: media attribution across the two real feed-node shapes ---
+
+FEEDER = "feeder-xyz"
+
+
+def _image(media_id: str, *, feeder: str = FEEDER, typename: str = "MediaImage") -> dict:
+    return {
+        "__typename": typename,
+        "id": media_id,
+        "contentUrl": f"https://media.example.com/{feeder}/{media_id}.jpg",
+        "thumbnailUrl": f"https://media.example.com/{feeder}/{media_id}-thumb.jpg",
+        "createdAt": "2026-06-23T12:00:00Z",
+    }
+
+
+def test_find_media_singular_media_shape() -> None:
+    """Sighting / mystery nodes carry a *singular* `media` object. This is the
+    real API shape (#7) and earlier code missed it entirely."""
+    node = FeedNode(
+        {
+            "__typename": "FeedItemMysteryVisitorNotRecognized",
+            "id": "n1",
+            "media": _image("m1"),
+        }
+    )
+    out = _find_media(FEEDER, [node])
+    assert len(out) == 1
+    assert out[0]["media"]["id"] == "m1"
+
+
+def test_find_media_plural_medias_shape() -> None:
+    """Collected-postcard nodes carry a `medias` array; that shape must still
+    work (the first matching image is attached)."""
+    node = FeedNode(
+        {
+            "__typename": "FeedItemCollectedPostcard",
+            "id": "n2",
+            "medias": [_image("a"), _image("b")],
+        }
+    )
+    out = _find_media(FEEDER, [node])
+    assert len(out) == 1
+    assert out[0]["media"]["id"] == "a"
+
+
+def test_find_media_filters_other_feeders() -> None:
+    """Media whose URL belongs to a different feeder must be dropped — the feed
+    is account-wide and has no per-item feeder field."""
+    node = FeedNode(
+        {
+            "__typename": "FeedItemMysteryVisitorNotRecognized",
+            "id": "n3",
+            "media": _image("m1", feeder="some-other-feeder"),
+        }
+    )
+    assert _find_media(FEEDER, [node]) == []
+
+
+def test_find_media_ignores_video_only_nodes() -> None:
+    """A node with only a video (no image) yields nothing — the surface shows
+    a still image."""
+    node = FeedNode(
+        {
+            "__typename": "FeedItemSpeciesSighting",
+            "id": "n4",
+            "media": _image("v1", typename="MediaVideo"),
+        }
+    )
+    assert _find_media(FEEDER, [node]) == []

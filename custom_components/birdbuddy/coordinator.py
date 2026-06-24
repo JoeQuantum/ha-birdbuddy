@@ -152,6 +152,23 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             else:
                 self.feeders[i] = f
         self.first_update = False
+
+        # Refresh the recent-visitor surface every poll. The event-driven path
+        # (RecentVisitors._on_new_postcard) only fires when a postcard converts
+        # to a sighting, which never happens for feeders without auto-ID — Bird
+        # Buddy returns INTERNAL_SERVER_ERROR (see _process_feed). Polling the
+        # feed here is the only way those feeders' mystery visitors ever surface
+        # after startup (#7). A refresh failure must not fail the whole update.
+        for feeder_id, visitors in self.visitors.items():
+            try:
+                await visitors.async_update()
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.debug(
+                    "Recent-visitor refresh failed for feeder %s: %s",
+                    feeder_id,
+                    exc,
+                )
+
         return self.client
 
     async def handle_collect_postcard(self, data: dict[str, any]) -> bool:
