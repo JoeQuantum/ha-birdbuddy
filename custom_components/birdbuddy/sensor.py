@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 
 from birdbuddy.birds import Species
@@ -44,6 +45,7 @@ async def async_setup_entry(
     async_add_entities(BirdBuddyBatteryEntity(f, coordinator) for f in feeders)
     async_add_entities(BirdBuddySignalEntity(f, coordinator) for f in feeders)
     async_add_entities(BirdBuddyStateEntity(f, coordinator) for f in feeders)
+    async_add_entities(BirdBuddyLastSyncEntity(f, coordinator) for f in feeders)
     async_add_entities(BirdBuddyRecentVisitorEntity(f, coordinator) for f in feeders)
     # Incubating: Food level always reports LOW
     async_add_entities(BirdBuddyFoodStateEntity(f, coordinator) for f in feeders)
@@ -242,6 +244,33 @@ class BirdBuddyStateEntity(BirdBuddyMixin, SensorEntity):
     def native_value(self) -> int:
         """Return the state of the sensor."""
         return self.feeder.state.value.lower()
+
+
+class BirdBuddyLastSyncEntity(BirdBuddyMixin, SensorEntity):
+    """Timestamp of the last successful Bird Buddy poll.
+
+    The value is account-wide (one coordinator serves all feeders), but the
+    entity is attached per feeder device to match the existing per-feeder model
+    and avoid introducing a synthetic account-level device. See README note.
+    """
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_sync"
+
+    def __init__(
+        self,
+        feeder: BirdBuddyDevice,
+        coordinator: BirdBuddyDataUpdateCoordinator,
+    ) -> None:
+        super().__init__(feeder, coordinator)
+        self._attr_unique_id = f"{self.feeder.id}-last-sync"
+
+    @property
+    def native_value(self) -> datetime | None:
+        """The UTC time of the last successful update."""
+        return self.coordinator.last_update_timestamp
 
 
 class BirdBuddyTemperatureEntity(BirdBuddyMixin, SensorEntity):
