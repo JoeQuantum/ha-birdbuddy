@@ -160,6 +160,25 @@ cards:
 
 # Events
 
+### `birdbuddy_new_feed_item`
+
+Fired once for each newly-seen visitor-bearing feed item, on the poll where it first appears. This is independent of and additive to [`birdbuddy_new_postcard_sighting`](#birdbuddy_new_postcard_sighting) — it fires for **every** new visit (`FeedItemNewPostcard`, `FeedItemCollectedPostcard`, `FeedItemSpeciesSighting`, `FeedItemSpeciesUnlocked`, `FeedItemMysteryVisitorNotRecognized`, `FeedItemMysteryVisitorResolved`), and crucially carries the **image URL directly** — including for unidentified postcards, which never produce a sighting. Use it when you just want "a bird visited, here's the picture" without depending on the collect-to-sighting conversion.
+
+The payload is intentionally slim (refs plus the fields automations need, not the full nested feed blob — same sub-32KB recorder discipline as [#78](https://github.com/jhansche/ha-birdbuddy/issues/78)):
+
+| Field           | Description                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `item_id`       | The feed node id.                                                                        |
+| `type`          | The feed node `__typename` (e.g. `FeedItemNewPostcard`).                                  |
+| `created_at`    | ISO-8601 timestamp string from the feed item.                                            |
+| `feeder_id`     | The feeder id, resolved from the media URL when possible; `null` if it can't be matched. |
+| `media_url`     | Full-size image URL when available, else `null`.                                          |
+| `thumbnail_url` | Thumbnail image URL when available, else `null`.                                          |
+
+Notes:
+- Deduplication is in-memory (the most recent 500 item ids); it is **not** persisted to the config entry, so it never grows `.storage`. On restart, the first poll re-seeds the seen-set silently rather than replaying the backlog.
+- For raw `FeedItemNewPostcard` items the image is fetched via the same direct postcard-media path added in v0.1.8, so unidentified visits still carry a picture.
+
 ### `birdbuddy_new_postcard_sighting`
 
 This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*. See "Postcard auto-collection" below for how the integration handles cases where Bird Buddy refuses the conversion.

@@ -17,6 +17,11 @@ POLLING_INTERVAL = timedelta(minutes=10)
 CONF_FEEDER_ID = "feeder_id"
 TRIGGER_TYPE_POSTCARD = "new_postcard"
 EVENT_NEW_POSTCARD_SIGHTING = f"{DOMAIN}_new_postcard_sighting"
+# Fired once per newly-seen visitor-bearing feed item (postcards, sightings,
+# mystery visitors, etc). Independent of and additive to the postcard-sighting
+# event above — this one carries the media URL directly, including unidentified
+# postcards, and does not depend on the collect-to-sighting conversion.
+EVENT_NEW_FEED_ITEM = f"{DOMAIN}_new_feed_item"
 
 # Maximum number of recent visitors to retain for the carousel surface.
 # The list is rebuilt from the feed each poll so URLs stay fresh.
