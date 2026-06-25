@@ -1,5 +1,5 @@
 """Test component setup."""
-from unittest.mock import AsyncMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -39,6 +39,18 @@ async def test_setup_entry(hass: HomeAssistant):
     ), patch(
         "birdbuddy.client.BirdBuddy.refresh_feed",
         return_value=[],
+    ), patch(
+        # Any code path that reaches the live feed during setup (e.g. the
+        # new-feed-item event seeding) must be mocked here — an unmocked
+        # `feed()` performs real DNS/HTTP, which leaks a resolver thread the
+        # harness teardown fails on. That leak only manifests under aiodns, so
+        # it slips past a local venv without aiodns and only turns CI red. Mock
+        # it so the setup path can never reach the network.
+        "birdbuddy.client.BirdBuddy.feed",
+        new=AsyncMock(return_value=MagicMock(filter=MagicMock(return_value=[]))),
+    ), patch(
+        "birdbuddy.client.BirdBuddy.refresh_collections",
+        new=AsyncMock(return_value={}),
     ), patch(
         "birdbuddy.client.BirdBuddy.feeders",
         new_callable=PropertyMock,

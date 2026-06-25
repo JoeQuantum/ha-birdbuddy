@@ -80,6 +80,10 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         # and on restart the first poll re-seeds without firing.
         self._seen_feed_ids: set[str] = set()
         self._seen_feed_order: deque[str] = deque(maxlen=_SEEN_FEED_ITEM_CAP)
+        # Whether the one-time seed pass has run. Until it has, the next poll
+        # marks the existing backlog as seen WITHOUT firing, so a restart never
+        # replays old items as new events.
+        self._feed_events_seeded: bool = False
         # Poll cadence is user-configurable via the options flow; default keeps
         # the historical 10-minute interval. A changed option reloads the entry
         # (see __init__.py update listener), rebuilding the coordinator.
@@ -199,13 +203,23 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         is_first_update = self.first_update
         self.first_update = False
 
-        # Emit an event per newly-seen visitor-bearing feed item. On the first
-        # poll we only seed the seen-set (no firing) so a restart doesn't replay
-        # the whole backlog. A failure here must not fail the whole update.
-        try:
-            await self._fire_new_feed_item_events(seed_only=is_first_update)
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.debug("Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc)
+        # Emit an event per newly-seen visitor-bearing feed item. Skip the very
+        # first (setup) poll entirely, mirroring the _process_feed first-update
+        # skip: no feed is fetched during setup, and fetching one here purely to
+        # seed would be a network call setup doesn't need — and would leak a DNS
+        # resolver thread under aiodns. The first poll AFTER setup seeds the
+        # existing backlog without firing (so a restart never replays it); only
+        # later polls fire. A failure here must not fail the whole update.
+        if not is_first_update:
+            try:
+                await self._fire_new_feed_item_events(
+                    seed_only=not self._feed_events_seeded
+                )
+                self._feed_events_seeded = True
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.debug(
+                    "Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc
+                )
 
         # Refresh the recent-visitor surface every poll. The event-driven path
         # (RecentVisitors._on_new_postcard) only fires when a postcard converts
