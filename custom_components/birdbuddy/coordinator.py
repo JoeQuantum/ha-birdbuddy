@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_POLLING_INTERVAL,
@@ -69,6 +70,9 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         self.feeders = {}
         self.visitors = {}
         self.first_update = True
+        # UTC timestamp of the last successful poll; surfaced by the Last Sync
+        # sensor. None until the first success.
+        self.last_update_timestamp = None
         # In-memory dedup of feed-item ids already emitted as EVENT_NEW_FEED_ITEM.
         # The set gives O(1) membership; the deque tracks recency so we can cap
         # the set to the most recent _SEEN_FEED_ITEM_CAP ids. Deliberately not
@@ -219,6 +223,9 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
                     feeder_id,
                     exc,
                 )
+
+        # Mark a successful poll (reached only if no UpdateFailed was raised).
+        self.last_update_timestamp = dt_util.utcnow()
 
         return self.client
 

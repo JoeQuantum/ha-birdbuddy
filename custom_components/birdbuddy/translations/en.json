@@ -55,6 +55,9 @@
             }
         },
         "sensor": {
+            "last_sync": {
+                "name": "Last Sync"
+            },
             "feeder_state": {
                 "state": {
                     "deep_sleep": "Sleeping",
