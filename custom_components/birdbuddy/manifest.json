@@ -19,6 +19,6 @@
     "pybirdbuddy@git+https://github.com/JoeQuantum/pybirdbuddy@v0.0.25"
   ],
   "ssdp": [],
-  "version": "0.1.9",
+  "version": "0.1.10",
   "zeroconf": []
 }
