@@ -100,18 +100,20 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             try:
                 sighting = await self.client.sighting_from_postcard(postcard=postcard)
             except GraphqlError as err:
-                # Upstream #98: as of mid-2026 Bird Buddy stopped auto-creating
-                # sightings from postcards — the user has to manually identify
-                # the bird in the BB mobile app first. Until then,
-                # sightingCreateFromPostcard returns INTERNAL_SERVER_ERROR.
-                # Don't let a single un-ready postcard fail the whole update
+                # Upstream #98: sightingCreateFromPostcard intermittently returns
+                # INTERNAL_SERVER_ERROR. This affects ONLY the auto-collect path
+                # (turning a postcard into a saved sighting for the
+                # collect_postcard service / Media Browser). It does NOT affect
+                # the recent-visitor image, which is fetched directly from the
+                # postcard feed node — see visitors._fetch_postcard_media. Skip
+                # just this postcard so one failure doesn't fail the whole update
                 # cycle (which would lose all subsequent postcards too, since
                 # refresh_feed has already advanced its cursor past them).
                 LOGGER.warning(
-                    "Postcard %s could not be converted to a sighting (%s). "
-                    "Bird Buddy now requires manual identification in the app "
-                    "before a sighting becomes available; this postcard will "
-                    "be skipped. See README for details.",
+                    "Postcard %s could not be auto-collected into a sighting "
+                    "(%s). This affects only the collect_postcard path; the "
+                    "recent-visitor image is fetched separately and is "
+                    "unaffected. Skipping this postcard.",
                     postcard.node_id,
                     err,
                 )
@@ -159,9 +161,10 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         # Buddy returns INTERNAL_SERVER_ERROR (see _process_feed). Polling the
         # feed here is the only way those feeders' mystery visitors ever surface
         # after startup (#7). A refresh failure must not fail the whole update.
+        sole_feeder = len(self.client.feeders) == 1
         for feeder_id, visitors in self.visitors.items():
             try:
-                await visitors.async_update()
+                await visitors.async_update(sole_feeder=sole_feeder)
             except Exception as exc:  # noqa: BLE001
                 LOGGER.debug(
                     "Recent-visitor refresh failed for feeder %s: %s",

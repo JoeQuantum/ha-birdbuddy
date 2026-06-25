@@ -36,6 +36,7 @@ def _feed_item(
     return FeedNode(
         {
             "__typename": "FeedItemSpeciesSighting",
+            "id": f"node-{media_id}",
             "createdAt": created_at.isoformat(),
             "media": {
                 "__typename": "MediaImage",
@@ -77,6 +78,7 @@ def _mystery_feed_item(
     return FeedNode(
         {
             "__typename": "FeedItemMysteryVisitorNotRecognized",
+            "id": f"node-{media_id}",
             "createdAt": created_at.isoformat(),
             "media": {
                 "__typename": "MediaImage",
@@ -90,6 +92,46 @@ def _mystery_feed_item(
             # No "species" key at all — the defining trait of a mystery visitor.
         }
     )
+
+
+def _postcard_node(
+    *,
+    feeder_id: str = "f1",
+    node_id: str,
+    media_id: str,
+    media_url: str,
+    created_at: datetime,
+    feeder_in_url: bool = True,
+) -> dict:
+    """A raw `FeedItemNewPostcard` node as the custom media query returns it.
+
+    pybirdbuddy's feed omits `medias` here; the custom query requests it, and it
+    comes back as a `medias` array. `feeder_in_url` toggles whether the feeder
+    id appears in the thumbnail URL (it does not on every account)."""
+    thumb = (
+        f"https://thumb.example.com/{feeder_id}/{media_id}"
+        if feeder_in_url
+        else f"https://thumb.example.com/elsewhere/{media_id}"
+    )
+    return {
+        "__typename": "FeedItemNewPostcard",
+        "id": node_id,
+        "createdAt": created_at.isoformat(),
+        "medias": [
+            {
+                "__typename": "MediaImage",
+                "id": media_id,
+                "createdAt": created_at.isoformat(),
+                "thumbnailUrl": thumb,
+                "contentUrl": media_url,
+            }
+        ],
+    }
+
+
+def _postcard_query_result(nodes: list[dict]) -> dict:
+    """Shape of `_make_request(FEED_WITH_MEDIAS_QUERY)`'s unwrapped data."""
+    return {"me": {"feed": {"edges": [{"node": n} for n in nodes]}}}
 
 
 def _make_visitors(
@@ -108,6 +150,9 @@ def _make_visitors(
     """
     client = MagicMock()
     client.refresh_collections = AsyncMock(return_value={})
+    # Raw-postcard media query: default to an empty feed so it no-ops unless a
+    # test wires postcard nodes into it.
+    client._make_request = AsyncMock(return_value={})
     return RecentVisitors(
         feeder=SimpleNamespace(id=feeder_id, name=feeder_name),
         client=client,
@@ -457,3 +502,115 @@ def test_recent_entries_are_serializable_to_sensor_attribute_shape() -> None:
     assert entry.media.content_url == "https://cdn.example.com/m1.jpg"
     assert entry.species.name == "Cardinal"
     assert entry.created_at is not None
+
+
+# --- Raw (unidentified) postcard media: the actual #7 fix ---
+
+
+def _empty_feed(visitors: RecentVisitors) -> None:
+    """Wire `client.feed()` to return no typed items (the usual case for a
+    feeder without auto-ID — its visits are all raw postcards)."""
+    feed = MagicMock()
+    feed.filter.return_value = []
+    visitors.client.feed = AsyncMock(return_value=feed)
+
+
+def test_raw_postcard_media_surfaces_with_none_species() -> None:
+    """The core fix: a feeder without auto-ID only produces raw postcards, whose
+    media pybirdbuddy's feed never requests. We fetch it via the custom query;
+    it must surface as a recent visitor with `species=None`."""
+    visitors = _make_visitors(count=3)
+    _empty_feed(visitors)
+
+    base = datetime(2026, 6, 24, 12, 0, 0, tzinfo=timezone.utc)
+    node = _postcard_node(
+        node_id="p1",
+        media_id="pm1",
+        media_url="https://cdn.example.com/p1.jpg",
+        created_at=base,
+    )
+    visitors.client._make_request = AsyncMock(
+        return_value=_postcard_query_result([node])
+    )
+
+    asyncio.run(visitors.async_update())
+
+    assert len(visitors.recent) == 1
+    assert visitors.recent[0].species is None
+    assert visitors.latest_media.content_url == "https://cdn.example.com/p1.jpg"
+
+
+def test_raw_postcard_sole_feeder_attributes_without_url_match() -> None:
+    """When the feeder id is NOT embedded in the postcard's image URL, the media
+    is dropped on a multi-feeder account but kept when this is the only feeder
+    (matching the behavior of the working fork yorb pointed at)."""
+    visitors = _make_visitors()
+    _empty_feed(visitors)
+
+    base = datetime(2026, 6, 24, 12, 0, 0, tzinfo=timezone.utc)
+    node = _postcard_node(
+        node_id="p1",
+        media_id="pm1",
+        media_url="https://cdn.example.com/p1.jpg",
+        created_at=base,
+        feeder_in_url=False,
+    )
+    visitors.client._make_request = AsyncMock(
+        return_value=_postcard_query_result([node])
+    )
+
+    # Not the sole feeder → can't safely attribute → dropped.
+    asyncio.run(visitors.async_update(sole_feeder=False))
+    assert visitors.recent == []
+
+    # Sole feeder → attributed anyway.
+    asyncio.run(visitors.async_update(sole_feeder=True))
+    assert len(visitors.recent) == 1
+    assert visitors.recent[0].species is None
+
+
+def test_typed_entry_wins_over_postcard_for_same_node() -> None:
+    """If a node shows up in both the typed feed (with species) and the custom
+    postcard query, the typed entry must win — we keep the species rather than
+    overwriting it with a speciesless postcard duplicate."""
+    visitors = _make_visitors(count=5)
+
+    base = datetime(2026, 6, 24, 12, 0, 0, tzinfo=timezone.utc)
+    typed = _feed_item(
+        species_id="s1",
+        species_name="Cardinal",
+        media_id="shared",
+        media_url="https://cdn.example.com/typed.jpg",
+        created_at=base,
+    )  # node id == "node-shared"
+    feed = MagicMock()
+    feed.filter.return_value = [typed]
+    visitors.client.feed = AsyncMock(return_value=feed)
+
+    node = _postcard_node(
+        node_id="node-shared",
+        media_id="pm",
+        media_url="https://cdn.example.com/postcard.jpg",
+        created_at=base,
+    )
+    visitors.client._make_request = AsyncMock(
+        return_value=_postcard_query_result([node])
+    )
+
+    asyncio.run(visitors.async_update())
+
+    assert len(visitors.recent) == 1
+    assert visitors.recent[0].species.name == "Cardinal"
+    assert visitors.recent[0].media.content_url == "https://cdn.example.com/typed.jpg"
+
+
+def test_postcard_query_failure_is_non_fatal() -> None:
+    """If the custom query errors, the update still completes (other feed types
+    and the collections fallback must keep working)."""
+    visitors = _make_visitors()
+    _empty_feed(visitors)
+    visitors.client._make_request = AsyncMock(side_effect=RuntimeError("boom"))
+
+    # Must not raise.
+    asyncio.run(visitors.async_update())
+    assert visitors.recent == []

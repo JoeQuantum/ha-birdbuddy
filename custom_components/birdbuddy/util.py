@@ -22,7 +22,12 @@ def _media_list(item: FeedNode) -> list[dict]:
     return []
 
 
-def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
+def _find_media(
+    feeder_id: str,
+    items: list[FeedNode],
+    *,
+    require_feeder_match: bool = True,
+) -> list[FeedNode]:
     """Return feed items that carry an image from this feeder.
 
     A `species` is NOT required: mystery (unrecognized) visitors — the only
@@ -30,6 +35,12 @@ def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
     must still surface as recent visitors with `species=None`. See issue #7.
 
     The single matched image is attached back onto the node as `media`.
+
+    The feed has no per-item feeder field, so media is attributed to a feeder by
+    matching its id inside the (signed) thumbnail URL. `require_feeder_match`
+    can be turned off by callers that have already established the media belongs
+    to this feeder (e.g. the account has a single feeder), since that URL
+    heuristic does not hold on every account.
     """
     found: list[FeedNode] = []
     for item in items:
@@ -42,21 +53,23 @@ def _find_media(feeder_id: str, items: list[FeedNode]) -> list[FeedNode]:
         ]
         if not images:
             continue
-        mine = [m for m in images if feeder_id in m.get("thumbnailUrl", "")]
-        if not mine:
-            # The feed has no per-item feeder field, so we attribute media to a
-            # feeder by matching its id in the (signed) thumbnail URL. If images
-            # are present but none match, log it — this is the most likely place
-            # a still-empty recent-visitor list would originate.
-            LOGGER.debug(
-                "Feed node %s has %d image(s) but none match feeder %s by URL; "
-                "skipping. First thumbnail: %s",
-                item.get("id"),
-                len(images),
-                feeder_id,
-                images[0].get("thumbnailUrl"),
-            )
-            continue
+        if require_feeder_match:
+            mine = [m for m in images if feeder_id in m.get("thumbnailUrl", "")]
+            if not mine:
+                # Images present but none attributable to this feeder by URL —
+                # the most likely place a still-empty recent-visitor list would
+                # originate. Log it so it shows up in a debug capture.
+                LOGGER.debug(
+                    "Feed node %s has %d image(s) but none match feeder %s by "
+                    "URL; skipping. First thumbnail: %s",
+                    item.get("id"),
+                    len(images),
+                    feeder_id,
+                    images[0].get("thumbnailUrl"),
+                )
+                continue
+        else:
+            mine = images
         found.append(item | {"media": next(iter(mine), None)})
     return found
 

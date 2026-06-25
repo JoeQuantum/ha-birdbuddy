@@ -263,6 +263,22 @@ def test_find_media_filters_other_feeders() -> None:
     assert _find_media(FEEDER, [node]) == []
 
 
+def test_find_media_without_feeder_match_accepts_any_image() -> None:
+    """With `require_feeder_match=False`, an image whose URL doesn't carry this
+    feeder's id is still accepted (used for the single-feeder postcard case)."""
+    node = FeedNode(
+        {
+            "__typename": "FeedItemNewPostcard",
+            "id": "n5",
+            "medias": [_image("m1", feeder="some-other-feeder")],
+        }
+    )
+    assert _find_media(FEEDER, [node]) == []
+    out = _find_media(FEEDER, [node], require_feeder_match=False)
+    assert len(out) == 1
+    assert out[0]["media"]["id"] == "m1"
+
+
 def test_find_media_ignores_video_only_nodes() -> None:
     """A node with only a video (no image) yields nothing — the surface shows
     a still image."""

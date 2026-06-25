@@ -76,7 +76,7 @@ A device is created for each Bird Buddy feeder associated with the account. See 
 | `Charging`       | `binary_sensor` | Whether the Bird Buddy is currently charging                                                                                                    |
 | `Off-Grid`       | `switch`        | Present and toggle Off-Grid status (owners only)                                                                                                |
 | `Power Profile`  | `select`        | Choose between Power Profile settings. NOTE: `FRENZY_MODE` appears to be a paid feature requiring an active payment subscription.               |
-| `Recent Visitor` | `sensor`        | State represents the most recent visitor's bird species name, and the `entity_picture` points to the cover media of that recent postcard visit. The `visitors` attribute exposes the last 5 visits as a list (`species`, `media_url`, `created_at`) for templating. |
+| `Recent Visitor` | `sensor`        | State represents the most recent visitor's bird species name (blank for an unidentified visitor), and the `entity_picture` points to that visit's image — fetched directly from the postcard, so it appears even before the bird is identified in the app. The `visitors` attribute exposes the last 5 visits as a list (`species`, `media_url`, `created_at`) for templating; `species` is `null` for unidentified visits. |
 | `Recent Visitor Image`     | `image`         | The most recent visitor's image. Enabled by default.                                                                                  |
 | `Recent Visitor Image 2-5` | `image`         | Carousel positions 2..5 of the recent-visitor feed. Disabled by default — enable in **Settings → Devices → Bird Buddy** for the carousel dashboard cards (see below). |
 | `State`          | `sensor`        | Current state (ready, offline, etc)                                                                                                             |
@@ -170,7 +170,7 @@ This event is fired when a new postcard is detected in the feed *and Bird Buddy 
 
 ## Postcard auto-collection (handling `INTERNAL_SERVER_ERROR`)
 
-The Bird Buddy API intermittently returns `INTERNAL_SERVER_ERROR` from the `sightingCreateFromPostcard` mutation — see upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98). **The root cause has not been identified.** User reports suggest it correlates with postcards that haven't been opened in the Bird Buddy app, but this has not been confirmed against the live API.
+The Bird Buddy API intermittently returns `INTERNAL_SERVER_ERROR` from the `sightingCreateFromPostcard` mutation — see upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98). This affects only **auto-collection** — turning a postcard into a saved sighting for the [`birdbuddy.collect_postcard`](#birdbuddycollect_postcard) service and the [Media Browser](#media). **It does not affect the `Recent Visitor` image or `visitors` attribute**, which (as of v0.1.8) are fetched directly from the postcard feed node and appear whether or not the bird has been identified in the app. So a feeder without auto-ID still surfaces its visitors' images (with `species: null`); only saving them to collections requires the mutation to succeed.
 
 What the integration does when the error occurs:
 
