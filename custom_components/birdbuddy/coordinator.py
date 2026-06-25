@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from birdbuddy.client import BirdBuddy
 from birdbuddy.exceptions import GraphqlError
 from birdbuddy.feed import FeedNode, FeedNodeType
@@ -16,7 +18,13 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .const import DOMAIN, EVENT_NEW_POSTCARD_SIGHTING, LOGGER, POLLING_INTERVAL
+from .const import (
+    CONF_POLLING_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
+    DOMAIN,
+    EVENT_NEW_POSTCARD_SIGHTING,
+    LOGGER,
+)
 from .device import BirdBuddyDevice
 from .util import slim_event_payload
 from .visitors import RecentVisitors, VisitorCallback
@@ -41,11 +49,15 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         self.feeders = {}
         self.visitors = {}
         self.first_update = True
+        # Poll cadence is user-configurable via the options flow; default keeps
+        # the historical 10-minute interval. A changed option reloads the entry
+        # (see __init__.py update listener), rebuilding the coordinator.
+        minutes = entry.options.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
         super().__init__(
             hass,
             LOGGER,
             name=DOMAIN,
-            update_interval=POLLING_INTERVAL,
+            update_interval=timedelta(minutes=minutes),
         )
 
     def add_visitor_listener(

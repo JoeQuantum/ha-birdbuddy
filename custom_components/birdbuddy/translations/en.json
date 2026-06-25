@@ -18,6 +18,19 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Bird Buddy options",
+                "data": {
+                    "polling_interval": "Polling interval (minutes)"
+                },
+                "data_description": {
+                    "polling_interval": "How often to poll Bird Buddy for new data, in minutes (1-20). Default is 10."
+                }
+            }
+        }
+    },
     "device_automation": {
         "trigger_type": {
             "new_postcard": "A new postcard is ready"

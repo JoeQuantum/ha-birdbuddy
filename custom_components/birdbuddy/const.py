@@ -14,6 +14,14 @@ MANUFACTURER = "Bird Buddy, Inc."
 # For best performance, this should be less than the access token expiration
 POLLING_INTERVAL = timedelta(minutes=10)
 
+# User-configurable polling interval (minutes), exposed via the options flow.
+# Default reproduces the historical 10-minute cadence, so existing entries are
+# unchanged until the user opts to override it.
+CONF_POLLING_INTERVAL = "polling_interval"
+DEFAULT_POLLING_INTERVAL = 10
+MIN_POLLING_INTERVAL = 1
+MAX_POLLING_INTERVAL = 20
+
 CONF_FEEDER_ID = "feeder_id"
 TRIGGER_TYPE_POSTCARD = "new_postcard"
 EVENT_NEW_POSTCARD_SIGHTING = f"{DOMAIN}_new_postcard_sighting"
