@@ -88,12 +88,22 @@ async def async_setup_entry(
     hass.data[DOMAIN][entry.entry_id] = coordinator
     await coordinator.async_config_entry_first_refresh()
 
+    # Apply a changed polling interval without requiring a restart: reload the
+    # entry when its options change, which rebuilds the coordinator with the new
+    # update_interval.
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+
     await hass.config_entries.async_forward_entry_setups(
         entry,
         PLATFORMS,
     )
 
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(

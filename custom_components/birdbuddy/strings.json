@@ -18,6 +18,19 @@
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bird Buddy options",
+        "data": {
+          "polling_interval": "Polling interval (minutes)"
+        },
+        "data_description": {
+          "polling_interval": "How often to poll Bird Buddy for new data, in minutes (1-20). Default is 10."
+        }
+      }
+    }
+  },
   "entity": {
     "select": {
       "power_profile": {

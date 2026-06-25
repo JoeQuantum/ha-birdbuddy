@@ -3,13 +3,49 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 from birdbuddy.exceptions import GraphqlError
 from birdbuddy.feed import FeedNodeType
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.birdbuddy.const import EVENT_NEW_POSTCARD_SIGHTING
+from custom_components.birdbuddy.const import (
+    CONF_POLLING_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
+    DOMAIN,
+    EVENT_NEW_POSTCARD_SIGHTING,
+)
 from custom_components.birdbuddy.coordinator import BirdBuddyDataUpdateCoordinator
+
+
+def _config_entry(options: dict | None = None) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={"email": "test@email.com", "password": "pw"},
+        options=options or {},
+    )
+
+
+async def test_coordinator_uses_configured_polling_interval(
+    hass: HomeAssistant,
+) -> None:
+    """A configured interval becomes the coordinator's update_interval."""
+    entry = _config_entry(options={CONF_POLLING_INTERVAL: 3})
+    entry.add_to_hass(hass)
+    coordinator = BirdBuddyDataUpdateCoordinator(hass, MagicMock(), entry)
+    assert coordinator.update_interval == timedelta(minutes=3)
+
+
+async def test_coordinator_defaults_polling_interval(hass: HomeAssistant) -> None:
+    """With no option set, the historical default interval is used."""
+    entry = _config_entry()
+    entry.add_to_hass(hass)
+    coordinator = BirdBuddyDataUpdateCoordinator(hass, MagicMock(), entry)
+    assert coordinator.update_interval == timedelta(
+        minutes=DEFAULT_POLLING_INTERVAL
+    )
 
 
 def _make_coordinator(*, listener_count: int = 1) -> BirdBuddyDataUpdateCoordinator:
