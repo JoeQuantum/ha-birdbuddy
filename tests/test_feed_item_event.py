@@ -171,3 +171,53 @@ def test_dedup_set_respects_cap() -> None:
     # Oldest evicted, newest retained.
     assert "id-0" not in c._seen_feed_ids
     assert f"id-{_SEEN_FEED_ITEM_CAP + 99}" in c._seen_feed_ids
+
+
+def _make_poll_coordinator() -> BirdBuddyDataUpdateCoordinator:
+    """A coordinator wired to run `_async_update_data` end to end (first poll
+    onward), so the seed-on-first-real-poll gating can be exercised."""
+    from collections import deque
+
+    c = object.__new__(BirdBuddyDataUpdateCoordinator)
+    c.client = MagicMock()
+    c.client.refresh = AsyncMock(return_value=True)
+    c.client.refresh_feed = AsyncMock(return_value=[])
+    c.client.feeders = {"f1": {"id": "f1", "name": "Backyard"}}
+    c.client._make_request = AsyncMock(return_value={})
+    c.hass = MagicMock()
+    c.feeders = {}
+    c.visitors = {}
+    c.first_update = True
+    c.last_update_timestamp = None
+    c._seen_feed_ids = set()
+    c._seen_feed_order = deque(maxlen=_SEEN_FEED_ITEM_CAP)
+    c._feed_events_seeded = False
+    return c
+
+
+def test_setup_poll_does_not_fetch_feed_or_fire() -> None:
+    """Regression for the v0.1.9 CI failure: the first (setup) poll must not
+    call client.feed() at all — that real fetch leaked a resolver thread the
+    test harness fails on. Seeding moves to the first post-setup poll."""
+    c = _make_poll_coordinator()
+    feed = _feed([_sighting_node("a")])
+    c.client.feed = AsyncMock(return_value=feed)
+
+    # Poll 1 (first_update / setup): no feed fetch, nothing fired, nothing seeded.
+    asyncio.run(c._async_update_data())
+    assert c.client.feed.await_count == 0
+    assert _fired(c) == []
+    assert c._seen_feed_ids == set()
+    assert c._feed_events_seeded is False
+
+    # Poll 2 (first real poll): seed the backlog WITHOUT firing.
+    asyncio.run(c._async_update_data())
+    assert c.client.feed.await_count == 1
+    assert _fired(c) == []
+    assert c._seen_feed_ids == {"a"}
+    assert c._feed_events_seeded is True
+
+    # Poll 3: only genuinely-new items fire; the seeded backlog stays silent.
+    feed.filter.return_value = [_sighting_node("a"), _sighting_node("b")]
+    asyncio.run(c._async_update_data())
+    assert {p["item_id"] for p in _fired(c)} == {"b"}
