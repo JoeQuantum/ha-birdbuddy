@@ -1,8 +1,8 @@
-# Bird Buddy Plus — Home Assistant Integration
+# Bird Buddy — Home Assistant Integration
 
 A community fork of [`jhansche/ha-birdbuddy`](https://github.com/jhansche/ha-birdbuddy) by [@JoeQuantum](https://github.com/JoeQuantum), targeting more entities, better reliability, and a faster path for fixes and modern Home Assistant patterns.
 
-This component uses the [`pybirdbuddy`](https://github.com/JoeQuantum/pybirdbuddy) library (also a fork; pinned to the `schema-refresh-2026-05` branch).
+This component uses the [`pybirdbuddy`](https://github.com/JoeQuantum/pybirdbuddy) library (also a fork; pinned to the `v0.0.25` tag).
 
 ## Relation to upstream
 
@@ -63,6 +63,16 @@ Alternatively, click the button below to add the integration:
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=birdbuddy)
 
+# Options
+
+After setup, open **Settings → Devices & Services → Bird Buddy → Configure** to adjust:
+
+| Option             | Description                                                                                          |
+|--------------------|------------------------------------------------------------------------------------------------------|
+| `Polling interval` | How often the integration polls the Bird Buddy API for new data, in minutes (1–20). Default is `10`. |
+
+Changing the polling interval takes effect immediately — no restart required.
+
 # Devices
 
 A device is created for each Bird Buddy feeder associated with the account. See below for the entities available.
@@ -81,6 +91,7 @@ A device is created for each Bird Buddy feeder associated with the account. See 
 | `Recent Visitor Image 2-5` | `image`         | Carousel positions 2..5 of the recent-visitor feed. Disabled by default — enable in **Settings → Devices → Bird Buddy** for the carousel dashboard cards (see below). |
 | `State`          | `sensor`        | Current state (ready, offline, etc)                                                                                                             |
 | `Signal`         | `sensor`        | Current wifi signal (RSSI)                                                                                                                      |
+| `Last Sync`      | `sensor`        | Timestamp of the last successful poll of the Bird Buddy API. Diagnostic; one per feeder.                                                        |
 | `Update`         | `update`        | Show and install Firmware updates (owners only)                                                                                                 |
 
 Some entities are disabled or hidden by default if they represent an advanced use case (for example, the "Signal" entity), or because the support is not yet enabled by the Bird Buddy API (for example, the Temperature and Food Level sensors).
@@ -156,7 +167,7 @@ cards:
       - entity: switch.backyard_audio
 ```
 
-> **Some entities are disabled by default** — `Signal Strength`, `Temperature`, `Food Level`, and the carousel positions `Recent Visitor Image 2` through `_5`. To enable any of them: **Settings → Devices & Services → Bird Buddy → (your feeder) → +N entities not shown → Enable**. (This addresses upstream docs request [#64](https://github.com/jhansche/ha-birdbuddy/issues/64).)
+> **Some entities are disabled by default** — `Signal Strength`, `Temperature`, `Food Level`, and the carousel positions `Recent Visitor Image 2` through `_5`. To enable any of them: **Settings → Devices & Services → Bird Buddy → (your feeder) → +N entities not shown → Enable**.
 
 # Events
 
@@ -164,7 +175,7 @@ cards:
 
 Fired once for each newly-seen visitor-bearing feed item, on the poll where it first appears. This is independent of and additive to [`birdbuddy_new_postcard_sighting`](#birdbuddy_new_postcard_sighting) — it fires for **every** new visit (`FeedItemNewPostcard`, `FeedItemCollectedPostcard`, `FeedItemSpeciesSighting`, `FeedItemSpeciesUnlocked`, `FeedItemMysteryVisitorNotRecognized`, `FeedItemMysteryVisitorResolved`), and crucially carries the **image URL directly** — including for unidentified postcards, which never produce a sighting. Use it when you just want "a bird visited, here's the picture" without depending on the collect-to-sighting conversion.
 
-The payload is intentionally slim (refs plus the fields automations need, not the full nested feed blob — same sub-32KB recorder discipline as [#78](https://github.com/jhansche/ha-birdbuddy/issues/78)):
+The payload is intentionally slim (refs plus the fields automations need, not the full nested feed blob — it stays well under Home Assistant's 32768-byte recorder cap on event data):
 
 | Field           | Description                                                                              |
 | --------------- | ---------------------------------------------------------------------------------------- |
@@ -181,25 +192,13 @@ Notes:
 
 ### `birdbuddy_new_postcard_sighting`
 
-This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*. See "Postcard auto-collection" below for how the integration handles cases where Bird Buddy refuses the conversion.
+This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*.
 
-> **Note (fix for upstream [#78](https://github.com/jhansche/ha-birdbuddy/issues/78))**
+> **Note**
 >
-> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. Bird Buddy slims the payload before firing — the resulting event is typically <10 KB.
+> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. The integration slims the payload before firing — the resulting event is typically <10 KB.
 
-## Postcard auto-collection (handling `INTERNAL_SERVER_ERROR`)
-
-The Bird Buddy API intermittently returns `INTERNAL_SERVER_ERROR` from the `sightingCreateFromPostcard` mutation — see upstream issue [#98](https://github.com/jhansche/ha-birdbuddy/issues/98). This affects only **auto-collection** — turning a postcard into a saved sighting for the [`birdbuddy.collect_postcard`](#birdbuddycollect_postcard) service and the [Media Browser](#media). **It does not affect the `Recent Visitor` image or `visitors` attribute**, which (as of v0.1.8) are fetched directly from the postcard feed node and appear whether or not the bird has been identified in the app. So a feeder without auto-ID still surfaces its visitors' images (with `species: null`); only saving them to collections requires the mutation to succeed.
-
-What the integration does when the error occurs:
-
-- The failing `sightingCreateFromPostcard` call is caught.
-- A warning is logged naming the postcard ID.
-- That postcard is skipped (no `birdbuddy_new_postcard_sighting` event fires for it, so no `collect_postcard` automation runs against it).
-- The remaining postcards in the same refresh cycle are still processed.
-- The coordinator stays healthy — feeder state, battery, signal, and other entities keep updating.
-
-**Whether a skipped postcard is recoverable on a subsequent refresh has not been confirmed.** The feed cursor in the underlying library advances unconditionally during refresh, so a postcard skipped in one cycle may not reappear in later cycles even if a later attempt would succeed. Investigation is ongoing.
+The event payload:
 
 | Field      | Description                                                                                              |
 | ---------- | -------------------------------------------------------------------------------------------------------- |
