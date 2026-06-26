@@ -14,8 +14,6 @@ All credit for the original design and code belongs to [Joe Hansche](https://git
 
 This fork is a drop-in replacement: same domain, same entity IDs, same event/service names. **You must uninstall the upstream integration first** — both register the `birdbuddy` domain and HA will not load two integrations with the same domain. Existing automations, blueprints, and dashboard cards that reference `birdbuddy_*` entities, `birdbuddy_new_postcard_sighting` events, or the `birdbuddy.collect_postcard` service will keep working after the swap.
 
-> **Upgrading from an early `birdbuddy_plus` build of this fork:** if you ever ran a version of this fork that used the `birdbuddy_plus` domain, manually delete the `custom_components/birdbuddy_plus/` directory in your HA config after updating. HACS does not remove the old folder, and Home Assistant will keep loading the stale copy — shadowing the current `birdbuddy` integration with outdated code.
-
 ## Prior to installation
 
 You will need your Bird Buddy `email` and `password`.
