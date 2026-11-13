@@ -72,6 +72,31 @@ URLs. Sample thumbnail addresses are temporary references, not archive URLs.
 Billing details, account location/email, feeder coordinates/serials, invitation
 or authentication tokens, and report-token material are not selected.
 
+## Filter notifications by stable species ID
+
+Use a species ID actually returned in your postcard details; do not infer an ID
+from a translated name. For example, if Bird Buddy identifies a squirrel or another
+visitor you want to exclude from notifications, copy its returned `species.id`.
+Insert this action immediately after the `get_postcard_details` action in the
+[notification example](../examples/notify_postcard.yaml), before its variables
+and notification actions:
+
+```yaml
+- condition: template
+  value_template: >-
+    {% set ignored_ids = ['REPLACE_WITH_RETURNED_SPECIES_ID'] %}
+    {{ postcard_details.species
+       | selectattr('id', 'in', ignored_ids) | list | count == 0 }}
+```
+
+This skips a notification when any recognized species matches an ignored ID.
+Unidentified visits still pass; add `postcard_details.species | count > 0` if you
+also want to suppress them. Fetch complete details before filtering, because a
+large event can omit its species list. Language changes alter display names, not
+this ID comparison. The filter only controls this automation's notification; it
+does not discard a postcard, change global ignored-species preferences or promise
+that the vendor recognizes every squirrel or other visitor correctly.
+
 The queries validate against the schema captured on 2026-11-13. The implementation
 is tested with synthetic fixtures and mocked requests. This does not verify live
 account access, entitlement, actual hardware support, report retention, or current
