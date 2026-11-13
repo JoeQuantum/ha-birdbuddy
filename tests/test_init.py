@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
 import pytest
+from birdbuddy.user import BirdBuddyUser
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -38,6 +39,13 @@ async def test_setup_entry(hass: HomeAssistant):
         patch(
             "birdbuddy.client.BirdBuddy.refresh",
             return_value=True,
+        ),
+        patch(
+            "birdbuddy.client.BirdBuddy.user",
+            new_callable=PropertyMock,
+            return_value=BirdBuddyUser(
+                {"id": "account-test-id", "email": "test@email.com"}
+            ),
         ),
         patch(
             "birdbuddy.client.BirdBuddy.refresh_feed",

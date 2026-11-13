@@ -3,6 +3,7 @@
 from unittest.mock import ANY, AsyncMock, patch, PropertyMock
 
 from birdbuddy.sightings import SightingFinishStrategy
+from birdbuddy.user import BirdBuddyUser
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.setup import async_setup_component
 import pytest
@@ -29,6 +30,13 @@ def _mock_birdbuddy_setup():
     """
     with (
         patch("birdbuddy.client.BirdBuddy.refresh", return_value=True),
+        patch(
+            "birdbuddy.client.BirdBuddy.user",
+            new_callable=PropertyMock,
+            return_value=BirdBuddyUser(
+                {"id": "account-test-id", "email": "test@email"}
+            ),
+        ),
         patch("birdbuddy.client.BirdBuddy.refresh_feed", return_value=[]),
         patch(
             "birdbuddy.client.BirdBuddy.feeders",

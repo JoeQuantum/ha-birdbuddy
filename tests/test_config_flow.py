@@ -27,7 +27,13 @@ async def test_form(hass: HomeAssistant) -> None:
         patch(
             "birdbuddy.client.BirdBuddy.user",
             new_callable=PropertyMock,
-            return_value=BirdBuddyUser({"name": "Test User"}),
+            return_value=BirdBuddyUser(
+                {
+                    "id": "account-test-id",
+                    "name": "Test User",
+                    "email": "test@email.com",
+                }
+            ),
         ),
         patch(
             "custom_components.birdbuddy.async_setup_entry",
@@ -48,6 +54,7 @@ async def test_form(hass: HomeAssistant) -> None:
     assert result2.get("data") == {
         "email": "test@email.com",
         "password": "test-password",
+        "account_id": "account-test-id",
     }
     assert len(mock_setup_entry.mock_calls) == 1
 

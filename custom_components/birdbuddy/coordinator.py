@@ -7,13 +7,14 @@ from datetime import timedelta
 from typing import Any
 
 from birdbuddy.client import BirdBuddy
-from birdbuddy.exceptions import GraphqlError
+from birdbuddy.exceptions import AuthenticationFailedError, GraphqlError
 from birdbuddy.feed import FeedNode, FeedNodeType
 from birdbuddy.feeder import Feeder
 from birdbuddy.media import Collection
 from birdbuddy.sightings import PostcardSighting, SightingFinishStrategy
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, EventOrigin, HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -92,6 +93,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             hass,
             LOGGER,
             name=DOMAIN,
+            config_entry=entry,
             update_interval=timedelta(minutes=minutes),
         )
 
@@ -185,6 +187,8 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             if not self.first_update:
                 feed = await self.client.refresh_feed()
                 await self._process_feed(feed)
+        except AuthenticationFailedError as exc:
+            raise ConfigEntryAuthFailed("Bird Buddy authentication expired") from exc
         except Exception as exc:
             raise UpdateFailed(exc) from exc
 
@@ -214,6 +218,10 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
                     seed_only=not self._feed_events_seeded
                 )
                 self._feed_events_seeded = True
+            except AuthenticationFailedError as exc:
+                raise ConfigEntryAuthFailed(
+                    "Bird Buddy authentication expired"
+                ) from exc
             except Exception as exc:  # noqa: BLE001
                 LOGGER.debug("Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc)
 
@@ -227,6 +235,10 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         for feeder_id, visitors in self.visitors.items():
             try:
                 await visitors.async_update(sole_feeder=sole_feeder)
+            except AuthenticationFailedError as exc:
+                raise ConfigEntryAuthFailed(
+                    "Bird Buddy authentication expired"
+                ) from exc
             except Exception as exc:  # noqa: BLE001
                 LOGGER.debug(
                     "Recent-visitor refresh failed for feeder %s: %s",
@@ -263,6 +275,8 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         v0.1.8 query so unidentified postcards still carry an image."""
         try:
             result = await self.client._make_request(query=_FEED_WITH_MEDIAS_QUERY)
+        except AuthenticationFailedError:
+            raise
         except Exception as exc:  # noqa: BLE001
             LOGGER.debug("Postcard-media query failed for feed events: %s", exc)
             return {}

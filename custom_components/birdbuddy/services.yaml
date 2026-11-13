@@ -7,6 +7,26 @@ collect_postcard:
   #     # But associating a device lets us look up the coordinator and client
   #     integration: birdbuddy
   fields:
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when the feeder is shared across multiple configured accounts or cannot be attributed uniquely.
+      required: false
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account ID
+      description: Vendor account UUID, as an alternative to selecting a config entry. All supplied account, device and feeder targets must agree.
+      required: false
+      selector:
+        text:
+    device_id:
+      name: Feeder device
+      description: Optional HA device target. Must match the postcard feeder and selected account.
+      required: false
+      selector:
+        device:
+          integration: birdbuddy
     strategy:
       name: Strategy for collecting the postcard
       description: "Strategy can be one of

@@ -5,21 +5,28 @@ from __future__ import annotations
 from birdbuddy.client import BirdBuddy
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform, CONF_EMAIL, CONF_PASSWORD
+from homeassistant.const import Platform, CONF_DEVICE_ID, CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    ServiceValidationError,
+)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CONF_ACCOUNT_ID,
+    CONF_CONFIG_ENTRY_ID,
     DOMAIN,
     LOGGER,
     SERVICE_COLLECT_POSTCARD,
     SERVICE_SCHEMA_COLLECT_POSTCARD,
 )
 from .coordinator import BirdBuddyDataUpdateCoordinator
-from .hass_util import _find_coordinator_by_feeder
+from .hass_util import _resolve_coordinator
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -84,7 +91,33 @@ async def async_setup_entry(
     coordinator = BirdBuddyDataUpdateCoordinator(hass, client, entry)
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+        user = client.user
+        account_id = user.get("id") if user is not None else None
+        stored_id = entry.data.get(CONF_ACCOUNT_ID)
+        if not isinstance(account_id, str) or not account_id:
+            raise ConfigEntryNotReady("Bird Buddy returned no account identity")
+        if stored_id and stored_id != account_id:
+            raise ConfigEntryAuthFailed(
+                "Credentials refer to a different Bird Buddy account"
+            )
+        if not stored_id:
+            profile_email = user.get(CONF_EMAIL) if user is not None else None
+            if (
+                not isinstance(profile_email, str)
+                or profile_email.lower() != entry.data[CONF_EMAIL].lower()
+            ):
+                raise ConfigEntryAuthFailed(
+                    "Unable to verify the existing Bird Buddy account"
+                )
+            hass.config_entries.async_update_entry(
+                entry, data=entry.data | {CONF_ACCOUNT_ID: account_id}
+            )
+    except Exception:
+        # A failed setup is not an actionable account target.
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        raise
 
     # Apply a changed polling interval without requiring a restart: reload the
     # entry when its options change, which rebuilds the coordinator with the new
@@ -113,7 +146,7 @@ async def async_unload_entry(
         entry,
         PLATFORMS,
     ):
-        hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop(entry.entry_id, None)
 
     return unload_ok
 
@@ -132,21 +165,16 @@ def _setup_services(hass: HomeAssistant) -> None:
 
     async def handle_collect_postcard(service: ServiceCall) -> None:
         feeder_id = service.data["sighting"]["feeder"]["id"]
-        coordinator = _find_coordinator_by_feeder(hass, feeder_id)
-        if not coordinator:
-            # We could not find this specific feeder. This could mean that the Feeder has been
-            # factory reset and re-paired, but the Feed belongs to the same user. If we assume
-            # that, we can move on to find the next available Coordinator, even if it might not
-            # have the same feeder id anymore.
-            coordinator = next(iter(hass.data[DOMAIN].values()))
-            if coordinator:
-                LOGGER.warning(
-                    "Feeder with id '%s' not found: trying %s",
-                    feeder_id,
-                    list(coordinator.feeders.keys()),
-                )
-            else:
-                raise ValueError("Feeder with id '{feeder_id}' not found.")
+        try:
+            coordinator = _resolve_coordinator(
+                hass,
+                feeder_id=feeder_id,
+                config_entry_id=service.data.get(CONF_CONFIG_ENTRY_ID),
+                account_id=service.data.get(CONF_ACCOUNT_ID),
+                device_id=service.data.get(CONF_DEVICE_ID),
+            )
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
 
         await coordinator.handle_collect_postcard(service.data)
 

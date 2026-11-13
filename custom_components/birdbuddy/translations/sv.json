@@ -35,5 +35,23 @@
                 }
             }
         }
+    },
+    "config": {
+        "step": {
+            "reauth_confirm": {
+                "title": "Autentisera Bird Buddy igen",
+                "description": "Ange inloggningsuppgifterna f\u00f6r samma Bird Buddy-konto.",
+                "data": {
+                    "email": "E-post",
+                    "password": "L\u00f6senord"
+                }
+            }
+        },
+        "error": {
+            "wrong_account": "Dessa inloggningsuppgifter tillh\u00f6r ett annat Bird Buddy-konto."
+        },
+        "abort": {
+            "reauth_successful": "Autentiseringen lyckades"
+        }
     }
 }

@@ -49,7 +49,10 @@ async def async_validate_trigger_config(
 ) -> ConfigType:
     """Validate config."""
     config = cast(ConfigType, TRIGGER_SCHEMA(config))
-    coordinator = _find_coordinator_by_device(hass, config[CONF_DEVICE_ID])
+    try:
+        coordinator = _find_coordinator_by_device(hass, config[CONF_DEVICE_ID])
+    except ValueError as err:
+        raise InvalidDeviceAutomationConfig(str(err)) from err
     if not coordinator:
         raise InvalidDeviceAutomationConfig()
     return config

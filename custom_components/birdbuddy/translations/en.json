@@ -1,12 +1,14 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Reauthentication was successful"
         },
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "unknown": "Unexpected error",
+            "wrong_account": "These credentials belong to a different Bird Buddy account."
         },
         "step": {
             "user": {
@@ -15,6 +17,14 @@
                     "password": "Password"
                 },
                 "title": "Fill in your Bird Buddy login credentials"
+            },
+            "reauth_confirm": {
+                "title": "Reauthenticate Bird Buddy",
+                "description": "Enter credentials for the same Bird Buddy account.",
+                "data": {
+                    "email": "Email",
+                    "password": "Password"
+                }
             }
         }
     },

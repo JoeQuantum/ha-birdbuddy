@@ -1,12 +1,14 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Apparaat is al geconfigureerd"
+            "already_configured": "Apparaat is al geconfigureerd",
+            "reauth_successful": "Opnieuw verifi\u00ebren is geslaagd"
         },
         "error": {
             "cannot_connect": "Kan geen verbinding maken",
             "invalid_auth": "Ongeldige authenticatie",
-            "unknown": "Onverwachte fout"
+            "unknown": "Onverwachte fout",
+            "wrong_account": "Deze inloggegevens horen bij een ander Bird Buddy-account."
         },
         "step": {
             "user": {
@@ -15,6 +17,14 @@
                     "password": "Wachtwoord"
                 },
                 "title": "Voer de login gegevens van je Bird Buddy in"
+            },
+            "reauth_confirm": {
+                "title": "Bird Buddy opnieuw verifi\u00ebren",
+                "description": "Voer de inloggegevens voor hetzelfde Bird Buddy-account in.",
+                "data": {
+                    "email": "E-mail",
+                    "password": "Wachtwoord"
+                }
             }
         }
     },

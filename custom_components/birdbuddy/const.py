@@ -23,6 +23,8 @@ MIN_POLLING_INTERVAL = 1
 MAX_POLLING_INTERVAL = 20
 
 CONF_FEEDER_ID = "feeder_id"
+CONF_ACCOUNT_ID = "account_id"
+CONF_CONFIG_ENTRY_ID = "config_entry_id"
 TRIGGER_TYPE_POSTCARD = "new_postcard"
 EVENT_NEW_POSTCARD_SIGHTING = f"{DOMAIN}_new_postcard_sighting"
 # Fired once per newly-seen visitor-bearing feed item (postcards, sightings,
@@ -48,6 +50,8 @@ SERVICE_SCHEMA_COLLECT_POSTCARD = vol.Schema(
             vol.Extra: object,
         },
         vol.Optional(CONF_DEVICE_ID): cv.string,
+        vol.Optional(CONF_CONFIG_ENTRY_ID): cv.string,
+        vol.Optional(CONF_ACCOUNT_ID): cv.string,
         vol.Optional("strategy"): cv.string,
         vol.Optional("best_guess_confidence"): vol.Coerce(int),
         vol.Optional("share_media"): vol.Coerce(bool),
