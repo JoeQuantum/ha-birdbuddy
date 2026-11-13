@@ -6,7 +6,8 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from homeassistant.components.image import UNDEFINED
+import pytest
+from homeassistant.components.image import ImageEntity
 
 from custom_components.birdbuddy.image import BirdBuddyRecentVisitorImageEntity
 
@@ -73,11 +74,11 @@ def test_handle_coordinator_update_keeps_fresh_url() -> None:
     assert entity._attr_image_last_updated == "now"
 
 
-def test_handle_coordinator_update_noop_when_url_undefined() -> None:
-    """A never-populated URL (UNDEFINED sentinel) must not be touched and must
-    not raise."""
+@pytest.mark.parametrize("url", [object.__new__(ImageEntity).image_url, None, ""])
+def test_handle_coordinator_update_noop_without_url(url: object) -> None:
+    """An unset URL must not be passed to the signed-URL expiry parser."""
     entity = _make_image_entity()
-    entity._attr_image_url = UNDEFINED
+    entity._attr_image_url = url
 
     with patch(
         "custom_components.birdbuddy.image.is_media_expired"
@@ -87,7 +88,40 @@ def test_handle_coordinator_update_noop_when_url_undefined() -> None:
         entity._handle_coordinator_update()
 
     mock_expired.assert_not_called()
-    assert entity._attr_image_url is UNDEFINED
+    assert entity._attr_image_url is url
+
+
+@pytest.mark.parametrize("url", [object.__new__(ImageEntity).image_url, None, ""])
+def test_update_url_noop_without_media_or_url(url: object) -> None:
+    """A visitor without media must be safe before any URL is populated."""
+    entity = _make_image_entity()
+    entity._attr_image_url = url
+
+    with patch(
+        "custom_components.birdbuddy.image.is_media_expired"
+    ) as mock_expired:
+        entity._update_url(None)
+
+    mock_expired.assert_not_called()
+    assert entity._attr_image_url is url
+
+
+def test_update_url_clears_expired_url_without_new_media() -> None:
+    """A visitor event without a replacement must still clear an expired URL."""
+    entity = _make_image_entity()
+    entity._attr_image_url = "https://cdn.example.com/bird.jpg?Expires=1"
+    entity._attr_entity_picture = entity._attr_image_url
+    entity._attr_image_last_updated = "old"
+
+    with patch(
+        "custom_components.birdbuddy.image.is_media_expired", return_value=True
+    ) as mock_expired:
+        entity._update_url(None)
+
+    mock_expired.assert_called_once_with("https://cdn.example.com/bird.jpg?Expires=1")
+    assert entity._attr_image_url is None
+    assert entity._attr_image_last_updated is None
+    assert entity._attr_entity_picture is None
 
 
 def test_async_added_to_hass_seeds_from_existing_coordinator_state() -> None:

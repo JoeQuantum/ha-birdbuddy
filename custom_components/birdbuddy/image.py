@@ -1,11 +1,7 @@
 """The Bird Buddy image entity."""
 
 from birdbuddy.media import Media, is_media_expired
-from homeassistant.components.image import (
-    UNDEFINED,
-    ImageEntity,
-    Image,
-)
+from homeassistant.components.image import Image, ImageEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -100,7 +96,7 @@ class BirdBuddyRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
 
     def _handle_coordinator_update(self) -> None:
         url = self._attr_image_url
-        if url and url is not UNDEFINED and is_media_expired(url):
+        if isinstance(url, str) and url and is_media_expired(url):
             self._attr_image_url = None
             self._attr_image_last_updated = None
             self._attr_entity_picture = None
@@ -122,7 +118,7 @@ class BirdBuddyRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
             self._attr_image_last_updated = created_at
             self._attr_entity_picture = url
             self._cached_image = None
-        elif (url := self.image_url) and url is not UNDEFINED and is_media_expired(url):
+        elif isinstance(url := self.image_url, str) and url and is_media_expired(url):
             # Clear it
             self._attr_image_url = None
             self._attr_image_last_updated = None
