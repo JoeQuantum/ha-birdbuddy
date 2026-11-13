@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from tests.ha_compat import common as ha_test_common
 
 from custom_components.birdbuddy.const import (
     CONF_POLLING_INTERVAL,
@@ -16,8 +18,8 @@ from custom_components.birdbuddy.const import (
 )
 
 
-def _entry(options: dict | None = None) -> MockConfigEntry:
-    return MockConfigEntry(
+def _entry(options: dict | None = None) -> Any:
+    return ha_test_common.MockConfigEntry(
         domain=DOMAIN,
         data={"email": "test@email.com", "password": "pw"},
         options=options or {},

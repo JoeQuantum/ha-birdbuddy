@@ -1,15 +1,16 @@
 # Development and compatibility checks
 
-Bird Buddy Plus supports Home Assistant **2025.1.4 or newer**. The minimum
-and modern test lanes run the complete integration suite with an exactly
-matched Home Assistant test harness. A separate current-runtime smoke check
-tests imports and the configuration schema; it does not establish full runtime
-or hardware compatibility.
+Bird Buddy Plus supports Home Assistant **2025.1.4 or newer**. The minimum,
+modern and current test lanes run the complete integration suite with an
+exactly matched Home Assistant test harness. A separate current-runtime smoke
+check also tests imports and the configuration schema. These checks use mocked
+Bird Buddy responses; they do not establish physical hardware compatibility.
 
 | Check | Home Assistant | Python | Test harness |
 | --- | --- | --- | --- |
 | Minimum full suite | 2025.1.4 | 3.12.13 | 0.13.205 |
 | Modern full suite | 2026.7.1 | 3.14.4 | 0.13.345 |
+| Current full suite | 2026.11.1 | 3.14.4 | Official `pytest-homeassistant` 2026.11.1 |
 | Current import/config smoke | 2026.11.1 | 3.14.4 | Not used |
 
 `tests/ha_targets.json` records these targets. Tests check the requirements,
@@ -40,6 +41,19 @@ make deps PYTHON=python3.12 VENV=.venv-minimum REQUIREMENTS=requirements.test.tx
 make test VENV=.venv-minimum
 ```
 
+Run the exact current runtime with Home Assistant's official test package:
+
+```sh
+make deps PYTHON=python3.14 VENV=.venv-current REQUIREMENTS=requirements.test-current.txt
+make test VENV=.venv-current
+```
+
+Do not install both HA harness packages in one environment. `tests/ha_compat.py`
+selects the shared helpers from the installed package without changing either
+harness. The current package loads its plugin automatically. Pytest disables
+the separate `respx` plugin so HA can initialize its HTTP dependency aliases
+first, as required by the official package documentation.
+
 Run the current runtime smoke check separately, without a test harness:
 
 ```sh
@@ -67,9 +81,16 @@ Update compatibility targets deliberately, including their requirement files,
 minimum when the oldest supported lane changes. Development-tool pins and
 GitHub Actions updates are separate from that decision.
 
-As of this baseline, harness `0.13.375` requires HA `2026.10.4`. A test-only
-override to HA `2026.11.1` failed during test collection because the harness
-imports the removed private helper `logger._clear_logger_overwrites`.
-That combination is not a passing full-suite lane, and the harness was not
-patched to hide the incompatibility. Keep the current smoke check until a
-compatible harness is available.
+The legacy `pytest-homeassistant-custom-component` harness stopped at HA
+2026.10.4. Overriding that pin for HA 2026.11.1 fails because it imports removed
+private HA helpers. The replacement is the official, exactly matched
+[`pytest-homeassistant==2026.11.1`](https://pypi.org/project/pytest-homeassistant/2026.11.1/)
+package maintained in Home Assistant Core. The current full-suite lane uses
+that package directly; it does not override dependencies, patch the harness
+or suppress incompatible tests. The older lanes retain their matching legacy
+packages.
+
+Primary migration instructions:
+
+- [Official package documentation at HA 2026.11.1](https://github.com/home-assistant/core/blob/2026.11.1/packages/pytest-homeassistant/README.md)
+- [Legacy harness migration notice](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component/blob/a5d0326f2bff12642358a2296807c7dd8067cdbc/README.md)

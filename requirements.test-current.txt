@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# Official HA-owned harness, matched exactly to the current runtime.
+# Do not co-install pytest-homeassistant-custom-component in this environment.
+pytest-homeassistant==2026.11.1
+
+# Helpers used by this repository, no longer supplied by the old harness.
+pytest-cov==7.1.0
+pytest-unordered==0.8.0

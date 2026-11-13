@@ -8,6 +8,7 @@ updates:
       # These pins select compatibility targets and must move together with
       # tests/ha_targets.json, the workflow matrix and the documented minimum.
       - dependency-name: pytest-homeassistant-custom-component
+      - dependency-name: pytest-homeassistant
       - dependency-name: homeassistant
       # The client requires a coordinated integration/API migration.
       - dependency-name: pybirdbuddy

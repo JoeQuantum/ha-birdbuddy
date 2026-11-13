@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
-from typing import cast
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 from birdbuddy.exceptions import GraphqlError
 from birdbuddy.feed import FeedNodeType
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from tests.ha_compat import common as ha_test_common
 
 from custom_components.birdbuddy.const import (
     CONF_POLLING_INTERVAL,
@@ -21,8 +21,8 @@ from custom_components.birdbuddy.const import (
 from custom_components.birdbuddy.coordinator import BirdBuddyDataUpdateCoordinator
 
 
-def _config_entry(options: dict | None = None) -> MockConfigEntry:
-    return MockConfigEntry(
+def _config_entry(options: dict | None = None) -> Any:
+    return ha_test_common.MockConfigEntry(
         domain=DOMAIN,
         data={"email": "test@email.com", "password": "pw"},
         options=options or {},

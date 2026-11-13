@@ -19,13 +19,9 @@ from unittest.mock import patch
 
 import pytest
 
-from pytest_homeassistant_custom_component.common import (
-    async_mock_service,
-    mock_device_registry,
-    mock_registry,
-)
+from tests.ha_compat import PYTEST_PLUGINS, common as ha_test_common
 
-pytest_plugins = "pytest_homeassistant_custom_component"
+pytest_plugins = PYTEST_PLUGINS
 
 
 # This fixture enables loading custom integrations in all tests.
@@ -74,16 +70,16 @@ def error_get_data_fixture():
 @pytest.fixture
 def device_reg(hass):
     """Return an empty, loaded, registry."""
-    return mock_device_registry(hass)
+    return ha_test_common.mock_device_registry(hass)
 
 
 @pytest.fixture
 def entity_reg(hass):
     """Return an empty, loaded, registry."""
-    return mock_registry(hass)
+    return ha_test_common.mock_registry(hass)
 
 
 @pytest.fixture
 def calls(hass):
     """Track calls to a mock service."""
-    return async_mock_service(hass, "test", "automation")
+    return ha_test_common.async_mock_service(hass, "test", "automation")

@@ -13,10 +13,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import EventOrigin
 from homeassistant.helpers import device_registry
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_get_device_automations,
-)
+from tests.ha_compat import common as ha_test_common
 
 from custom_components.birdbuddy import DOMAIN
 from custom_components.birdbuddy import device_trigger
@@ -52,7 +49,7 @@ async def test_get_triggers(
     hass, device_reg: device_registry.DeviceRegistry, entity_reg
 ):
     """Test we get the expected triggers from a birdbuddy."""
-    config_entry = MockConfigEntry(domain="birdbuddy", data={})
+    config_entry = ha_test_common.MockConfigEntry(domain="birdbuddy", data={})
     config_entry.add_to_hass(hass)
     device_entry = device_reg.async_get_or_create(
         config_entry_id=config_entry.entry_id,
@@ -69,7 +66,7 @@ async def test_get_triggers(
             "metadata": {},
         },
     ]
-    triggers = await async_get_device_automations(
+    triggers = await ha_test_common.async_get_device_automations(
         hass, DeviceAutomationType.TRIGGER, device_entry.id
     )
     assert triggers == unordered(expected_triggers)
@@ -79,7 +76,7 @@ async def test_fires_on_postcard_event(
     hass, device_reg: device_registry.DeviceRegistry, calls
 ):
     """Test new-postcard event firing triggers the device."""
-    config_entry = MockConfigEntry(domain="birdbuddy", data={})
+    config_entry = ha_test_common.MockConfigEntry(domain="birdbuddy", data={})
     config_entry.add_to_hass(hass)
     device_entry = device_reg.async_get_or_create(
         config_entry_id=config_entry.entry_id,
@@ -108,7 +105,7 @@ async def test_does_not_fire_on_postcard_event_for_other_feeder(hass, calls):
 
 async def test_config_schema(hass, device_reg):
     """Test we get the expected triggers from a birdbuddy."""
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain="birdbuddy", data={}, state=ConfigEntryState.LOADED
     )
     config_entry.add_to_hass(hass)
@@ -129,7 +126,7 @@ async def test_config_schema(hass, device_reg):
 
 async def test_config_schema_no_coordinator(hass, device_reg):
     """Test we get the expected triggers from a birdbuddy."""
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain="birdbuddy", data={}, state=ConfigEntryState.LOADED
     )
     config_entry.add_to_hass(hass)

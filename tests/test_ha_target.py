@@ -12,6 +12,8 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 import yaml
 
+from tests.ha_compat import HARNESS_DISTRIBUTION
+
 ROOT = Path(__file__).resolve().parent.parent
 TARGETS = cast(
     dict[str, dict[str, str]],
@@ -51,18 +53,18 @@ def test_runtime_requirements_match_manifest() -> None:
 
 def test_full_suite_uses_an_exact_harness_runtime_pair() -> None:
     """Every full-suite lane uses the HA release its harness requires."""
-    harness_version = version("pytest-homeassistant-custom-component")
+    harness_version = version(HARNESS_DISTRIBUTION)
     matches = [
         TARGETS[name]
-        for name in ("minimum", "modern")
+        for name in ("minimum", "modern", "current")
         if TARGETS[name]["harness"] == harness_version
+        and TARGETS[name]["harness_distribution"] == HARNESS_DISTRIBUTION
     ]
     assert len(matches) == 1, f"Unrecorded test harness version: {harness_version}"
     target = matches[0]
     assert version("homeassistant") == target["homeassistant"]
     harness_dependencies = [
-        Requirement(value)
-        for value in requires("pytest-homeassistant-custom-component") or []
+        Requirement(value) for value in requires(HARNESS_DISTRIBUTION) or []
     ]
     assert any(
         canonicalize_name(dependency.name) == "homeassistant"
@@ -79,16 +81,15 @@ def test_declared_minimum_and_development_python_match_targets() -> None:
     hacs = json.loads((ROOT / "hacs.json").read_text())
     assert hacs["homeassistant"] == TARGETS["minimum"]["homeassistant"]
     assert (ROOT / ".python-version").read_text().strip() == TARGETS["modern"]["python"]
-    for name in ("minimum", "modern"):
+    for name in ("minimum", "modern", "current"):
         target = TARGETS[name]
-        pin = _requirements(target["requirements"])[
-            "pytest-homeassistant-custom-component"
-        ]
+        pin = _requirements(target["requirements"])[target["harness_distribution"]]
         assert str(pin.specifier) == f"=={target['harness']}"
     current = TARGETS["current_smoke"]
     smoke = _requirements(current["requirements"])
     assert str(smoke["homeassistant"].specifier) == f"=={current['homeassistant']}"
     assert "pytest-homeassistant-custom-component" not in smoke
+    assert "pytest-homeassistant" not in smoke
 
 
 def test_ci_matrix_and_smoke_lane_match_declared_targets() -> None:
@@ -104,7 +105,7 @@ def test_ci_matrix_and_smoke_lane_match_declared_targets() -> None:
     assert "pull_request" in workflow["on"]
     assert "workflow_dispatch" in workflow["on"]
     matrix = workflow["jobs"]["test"]["strategy"]["matrix"]["include"]
-    assert {row["target"] for row in matrix} == {"minimum", "modern"}
+    assert {row["target"] for row in matrix} == {"minimum", "modern", "current"}
     for row in matrix:
         target = TARGETS[row["target"]]
         assert row["ha"] == target["homeassistant"]

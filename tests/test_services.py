@@ -6,9 +6,7 @@ from birdbuddy.sightings import SightingFinishStrategy
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.setup import async_setup_component
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-)
+from tests.ha_compat import common as ha_test_common
 from voluptuous.error import MultipleInvalid
 
 from custom_components.birdbuddy.const import (
@@ -47,7 +45,7 @@ def _mock_birdbuddy_setup():
 
 async def test_services(hass):  # , config_entry):
     """Test services."""
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain=DOMAIN,
         data={CONF_EMAIL: "test@email", CONF_PASSWORD: "passw0rd"},
     )

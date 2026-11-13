@@ -7,9 +7,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-)
+from tests.ha_compat import common as ha_test_common
 
 from custom_components.birdbuddy import _async_migrate_enabled_defaults
 from custom_components.birdbuddy.const import DOMAIN
@@ -31,7 +29,7 @@ async def test_setup_entry(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED
     )
     config_entry.add_to_hass(hass)
@@ -88,7 +86,7 @@ async def test_setup_entry_no_feeders(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED
     )
     config_entry.add_to_hass(hass)
@@ -112,7 +110,7 @@ async def test_setup_entry_refresh_fails(hass: HomeAssistant):
         "email": "test@email.com",
         "password": "test-password",
     }
-    config_entry = MockConfigEntry(
+    config_entry = ha_test_common.MockConfigEntry(
         domain="birdbuddy", data=config, state=ConfigEntryState.NOT_LOADED
     )
     config_entry.add_to_hass(hass)
@@ -143,7 +141,7 @@ async def test_migration_re_enables_promoted_default_entities(hass: HomeAssistan
         entity that's legitimately disabled-by-default)
       - matching suffix + user-disabled → stays disabled (respect user choice)
     """
-    config_entry = MockConfigEntry(domain=DOMAIN, data={})
+    config_entry = ha_test_common.MockConfigEntry(domain=DOMAIN, data={})
     config_entry.add_to_hass(hass)
     registry = er.async_get(hass)
 

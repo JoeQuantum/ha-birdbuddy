@@ -26,6 +26,10 @@ jobs:
             python: "3.14.4"
             ha: "2026.7.1"
             requirements: requirements.test-modern.txt
+          - target: current
+            python: "3.14.4"
+            ha: "2026.11.1"
+            requirements: requirements.test-current.txt
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
