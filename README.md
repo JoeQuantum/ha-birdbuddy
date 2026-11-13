@@ -184,6 +184,7 @@ account based on list order or infer feeder ownership from a media URL.
 | Action | Purpose |
 | --- | --- |
 | `birdbuddy.get_postcard_details` | Read full selected details for `postcard_id`; returns a response |
+| `birdbuddy.get_account_insights` | Read selected account insights on demand; returns a response |
 | `birdbuddy.identify_postcard` | Explicitly run inference; does not collect/share |
 | `birdbuddy.collect_postcard` | Collect using explicit `selection_policy: server`; booleans `identify` and `share` default false |
 | `birdbuddy.backfill` | Read bounded history and queue separate backfill events; no collection |
@@ -197,6 +198,16 @@ fields and limits. Unknown action outcomes are retained and are not blindly
 retried. Read the postcard's current state and check the Bird Buddy app before
 acknowledging a retry. Read-only polling and historical replay never identify,
 collect or share automatically.
+
+### Optional account insights
+
+`birdbuddy.get_account_insights` exposes hardware and feature metadata, Smart Energy
+running state, species/preferences, named birds, vendor analytics and remote
+connection metadata. Choose a resource and account explicitly. It uses bounded
+caches and makes no additional background polls or changes to your account.
+Read the [resource and response contract](docs/account-insights.md) for examples,
+limits and unavailable results. These queries are schema- and fixture-tested;
+live account availability and device support remain unverified.
 
 ### Collect a chosen postcard
 

@@ -200,3 +200,66 @@ acknowledge_postcard_retry:
       required: true
       selector:
         boolean: null
+get_account_insights:
+  name: Read account insights
+  description: Read optional account data on demand and return it as a response. This
+    does not create entities or change preferences, recognition, sharing, or feeder
+    settings. The selected account and API must support the requested resource.
+  fields:
+    kind:
+      name: Resource
+      description: Choose the account resource to read.
+      required: true
+      selector:
+        select:
+          options:
+            - hardware
+            - preferences
+            - species
+            - named_birds
+            - weekly_recap
+            - yearly_review
+            - feeder_report
+            - remote_connections
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is ambiguous.
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied selectors must agree.
+      selector:
+        text: null
+    species_id:
+      name: Species ID
+      description: Required only for species. Use the stable vendor species ID, not its translated name.
+      selector:
+        text: null
+    feeder_id:
+      name: Feeder ID
+      description: Only for feeder_report. The feeder must belong to the selected authenticated account.
+      selector:
+        text: null
+    start:
+      name: Report start
+      description: Only for feeder_report, with end. Supply an ISO datetime with a timezone; the range may be at most 366 days.
+      example: '2026-01-01T00:00:00Z'
+      selector:
+        text: null
+    end:
+      name: Report end
+      description: Only for feeder_report, with start. This must be later than start. Returned report dates remain authoritative.
+      example: '2026-02-01T00:00:00Z'
+      selector:
+        text: null
+    limit:
+      name: Selected list limit
+      description: Maximum entries in each selected nested list, from 1 to 100. Omit for species. Other resources default to 50. This is a local result limit, not server pagination.
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: box
