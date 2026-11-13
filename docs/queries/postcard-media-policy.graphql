@@ -1,0 +1,41 @@
+# Read-only research document. Offline schema-validated, not account-executed.
+# Int confidence does not establish a percentage scale or collection semantics.
+query PostcardMediaPolicyEvidence($feedItemId: ID!) {
+  postcardMediasDetails(feedItemId: $feedItemId) {
+    __typename
+    id
+    media {
+      __typename
+      id
+      createdAt
+      thumbnailUrl
+      ... on MediaImage { contentUrl(size: ORIGINAL) }
+      ... on MediaVideo { contentUrl(size: ORIGINAL) }
+    }
+    ... on PostcardImageMediaDetails {
+      inferenceMediaDecision {
+        __typename
+        ... on InferenceMediaRecognizedDecision {
+          species { id name }
+          suggestions { ...SuggestionEvidence }
+        }
+        ... on InferenceMediaCannotDecideDecision {
+          suggestions { ...SuggestionEvidence }
+        }
+        ... on InferenceMediaNotRecognizedDecision {
+          suggestions { ...SuggestionEvidence }
+        }
+      }
+    }
+    ... on PostcardVideoMediaDetails {
+      species { id name }
+      suggestions { ...SuggestionEvidence }
+    }
+  }
+}
+
+fragment SuggestionEvidence on InferenceMediaRecognitionSuggestion {
+  id
+  confidence
+  species { id name }
+}
