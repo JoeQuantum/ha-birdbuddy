@@ -1,0 +1,44 @@
+{
+  "id": "fixture-id-025",
+  "coverCollectionMedia": {
+    "id": "fixture-id-026",
+    "feederName": "Test Bird Buddy",
+    "liked": false,
+    "likes": 0,
+    "isShared": false,
+    "locationCity": "Fixture location",
+    "locationCountry": "US",
+    "owning": true,
+    "ownerName": "Fixture name",
+    "origin": "POSTCARD",
+    "media": {
+      "id": "fixture-id-026",
+      "createdAt": "2025-02-23T18:35:36.055Z",
+      "thumbnailUrl": "https://example.invalid/asset-001",
+      "contentUrl": "https://example.invalid/asset-001",
+      "__typename": "MediaImage"
+    },
+    "__typename": "CollectionMedia"
+  },
+  "markedAsNew": false,
+  "visitsAllTime": 1,
+  "visitLastTime": "2025-02-23T19:18:45.160Z",
+  "previewMedia": [
+    {
+      "media": {
+        "thumbnailUrl": "https://example.invalid/asset-001",
+        "__typename": "MediaImage"
+      },
+      "__typename": "CollectionMedia"
+    }
+  ],
+  "__typename": "CollectionBird",
+  "species": {
+    "id": "fixture-id-027",
+    "iconUrl": "https://example.invalid/asset-001",
+    "name": "Black-Capped Chickadee",
+    "__typename": "SpeciesBird",
+    "isUnofficialName": false,
+    "mapUrl": "https://example.invalid/asset-001"
+  }
+}

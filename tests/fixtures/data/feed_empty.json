@@ -1,0 +1,9 @@
+{
+  "__typename": "FeedConnection",
+  "edges": [],
+  "pageInfo": {
+    "__typename": "PageInfo",
+    "hasNextPage": false,
+    "endCursor": null
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "__typename": "Me",
+  "user": {
+    "__typename": "User",
+    "id": "account-a",
+    "name": "Fixture User account-a",
+    "email": "account-a@example.invalid",
+    "avatarUrl": "https://example.invalid/avatar/account-a",
+    "signInType": "EMAIL"
+  },
+  "settings": {
+    "__typename": "Settings",
+    "notificationDisabled": null
+  },
+  "feeders": []
+}

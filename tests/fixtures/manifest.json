@@ -1,0 +1,124 @@
+{
+  "format_version": 1,
+  "schema_retrieved_at": "2026-11-13T19:09:10Z",
+  "public_source_commit": "207ed47578016e7223708e94d36a6b5be8c3c1e4",
+  "public_source_license": "MIT-0 / MIT No Attribution (jhansche/pybirdbuddy)",
+  "sanitization": "Public excerpts were sanitized again in memory; identifiers/names/contact/location/URLs replaced. All data URLs use example.invalid. Synthetic provenance is explicit. No account credentials or media downloaded.",
+  "fixtures": {
+    "public_owner_account.json": {
+      "root_type": "Me",
+      "origin": "public_capture_resanitized",
+      "purpose": "Owner account shape selected by the upstream ME query; telemetry is sample data, not verified working sensors.",
+      "source_url": "https://github.com/jhansche/pybirdbuddy/blob/207ed47578016e7223708e94d36a6b5be8c3c1e4/tests/fixtures/api_payloads.json",
+      "source_sha256": "91a8a9e77e01db6da599c4ad70069736f5ac807459f98036432414a96ed7ba5f"
+    },
+    "public_postcard_analysis.json": {
+      "root_type": "FeedItemNewPostcard",
+      "origin": "public_capture_resanitized",
+      "purpose": "Modern analysis result with five images, one video and recognized preview species. Structure and media cardinality retained.",
+      "source_url": "https://github.com/jhansche/pybirdbuddy/blob/207ed47578016e7223708e94d36a6b5be8c3c1e4/tests/fixtures/collect_flow.json",
+      "source_sha256": "0813c97467faac0e2acf6bd60d425dbfa6c25cd61d759dfbd71a472455d5df32"
+    },
+    "public_collected_partial.json": {
+      "root_type": "FeedItemCollectedPostcard",
+      "origin": "public_capture_resanitized",
+      "purpose": "Deliberately partial public collected result: eleven assets have IDs/types only. Tests must not assume content URLs or timestamps are present.",
+      "source_url": "https://github.com/jhansche/pybirdbuddy/blob/207ed47578016e7223708e94d36a6b5be8c3c1e4/tests/fixtures/collect_flow.json",
+      "source_sha256": "0813c97467faac0e2acf6bd60d425dbfa6c25cd61d759dfbd71a472455d5df32"
+    },
+    "public_collection.json": {
+      "root_type": "CollectionBird",
+      "origin": "public_capture_resanitized",
+      "purpose": "Account collection cover metadata; feederName is selected but explicit feeder ID is not.",
+      "source_url": "https://github.com/jhansche/pybirdbuddy/blob/207ed47578016e7223708e94d36a6b5be8c3c1e4/tests/fixtures/api_payloads.json",
+      "source_sha256": "91a8a9e77e01db6da599c4ad70069736f5ac807459f98036432414a96ed7ba5f"
+    },
+    "account_owner_hardware.json": {
+      "root_type": "Me",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Owner with newer hardware and nullable telemetry; V2_NOOK is schema-recognized, not hardware-tested."
+    },
+    "account_member_pending.json": {
+      "root_type": "Me",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Member and pending roles; member lacks owner-only settings and metrics may be null."
+    },
+    "account_empty.json": {
+      "root_type": "Me",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Authenticated account with zero feeders; does not prescribe current setup failure."
+    },
+    "accounts_shared_feeder.json": {
+      "root_type": "Me",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Two accounts share one physical feeder while the second also owns another; explicit routing must not depend on list order.",
+      "root_is_list": true
+    },
+    "postcard_complete.json": {
+      "root_type": "FeedItemNewPostcard",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Full selected-shape card with explicit feeder, two images and video; use for event/share/media preservation."
+    },
+    "postcard_unrecognized.json": {
+      "root_type": "FeedItemNewPostcard",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "A HIGH_CONFIDENCE card can have no recognized species; inference flag is not evidence of a bird."
+    },
+    "postcard_video_only.json": {
+      "root_type": "FeedItemNewPostcard",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Video-only card: future normalizer and events must not silently drop the sole asset."
+    },
+    "postcard_collected_complete.json": {
+      "root_type": "FeedItemCollectedPostcard",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Full selected-shape collected card with multiple species and mixed media; distinct from the partial public result."
+    },
+    "feed_variants.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Nested collection.species, singular/plural media, explicit collection feeder attribution, mystery/null and new/collected variants."
+    },
+    "feed_empty.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Empty feed with terminal cursor; no max(empty) or missing-list assumptions."
+    },
+    "feed_postcard_minimal.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Routine upstream FEED selects only ID/time/type for NewPostcard; absence of media is not proof the API has none."
+    },
+    "feed_incremental_pages.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Two pages with overlap and equal timestamps for cursor/deduplication/retry tests; small page size is deliberate.",
+      "root_is_list": true
+    },
+    "feed_malformed_timestamp.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_adversarial",
+      "purpose": "Selected non-null createdAt is intentionally null to exercise backend/schema-drift tolerance.",
+      "schema_valid": false,
+      "expected_schema_error": "unexpected null"
+    },
+    "feed_unknown_type.json": {
+      "root_type": "FeedConnection",
+      "origin": "synthetic_adversarial",
+      "purpose": "Invented future union member; intentionally outside current schema to test graceful unknown-type handling.",
+      "schema_valid": false,
+      "expected_schema_error": "unexpected type FeedItemFutureVisitor"
+    },
+    "media_expired.json": {
+      "root_type": "MediaImage",
+      "origin": "synthetic_from_live_schema",
+      "purpose": "Known expired placeholder URL for cache invalidation; no downloaded bytes or actual credentials."
+    },
+    "postcard_long_urls.json": {
+      "root_type": "FeedItemNewPostcard",
+      "origin": "synthetic_adversarial",
+      "purpose": "Large but schema-valid mixed-media card above32KiB; padding is harmless placeholder text, not an actual signature.",
+      "schema_valid": true
+    }
+  }
+}

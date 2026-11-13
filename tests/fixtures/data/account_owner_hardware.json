@@ -1,0 +1,58 @@
+{
+  "__typename": "Me",
+  "user": {
+    "__typename": "User",
+    "id": "account-a",
+    "name": "Fixture User account-a",
+    "email": "account-a@example.invalid",
+    "avatarUrl": "https://example.invalid/avatar/account-a",
+    "signInType": "EMAIL"
+  },
+  "settings": {
+    "__typename": "Settings",
+    "notificationDisabled": null
+  },
+  "feeders": [
+    {
+      "__typename": "FeederForOwner",
+      "id": "feeder-a",
+      "name": "Fixture Feeder feeder-a",
+      "state": "READY_TO_STREAM",
+      "housingType": "CLASSIC",
+      "version": "V2_NOOK",
+      "mountingType": "HANGER",
+      "solarRoof": "YES",
+      "firmwareVersion": "fixture-1.0.0",
+      "availableFirmwareVersion": null,
+      "serialNumber": "FIXTURE-feeder-a",
+      "powerProfile": "STANDARD_MODE",
+      "offGrid": false,
+      "audioEnabled": true,
+      "battery": {
+        "__typename": "FeederMetricBattery",
+        "charging": false,
+        "percentage": 80,
+        "state": "HIGH"
+      },
+      "signal": {
+        "__typename": "FeederMetricSignal",
+        "state": "MEDIUM",
+        "value": -60
+      },
+      "food": null,
+      "temperature": null,
+      "location": {
+        "__typename": "Location",
+        "city": "Fixture City",
+        "country": "US",
+        "latitude": 0.0,
+        "longitude": 0.0
+      },
+      "supportsAudio": true,
+      "supportsEnhancedLivestream": true,
+      "supportsLivestreamSnapshot": "SUPPORTED",
+      "supportsWebRTC": true,
+      "members": []
+    }
+  ]
+}
