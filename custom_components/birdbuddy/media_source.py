@@ -1,7 +1,9 @@
-"""Bird Buddy Media Source"""
+"""Account-scoped Bird Buddy collections and fresh playback URLs."""
 
-from datetime import datetime
-from birdbuddy.media import Collection, Media
+from datetime import datetime, timezone
+from urllib.parse import urlsplit
+
+from birdbuddy.media import Collection, Media, is_media_expired
 
 from homeassistant.components.media_player.const import MediaClass, MediaType
 from homeassistant.components.media_source.error import MediaSourceError, Unresolvable
@@ -11,7 +13,7 @@ from homeassistant.components.media_source.models import (
     MediaSourceItem,
     PlayMedia,
 )
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.util.dt as dt_util
 
@@ -20,7 +22,7 @@ from .coordinator import BirdBuddyDataUpdateCoordinator
 
 
 class BirdBuddyMediaSource(MediaSource):
-    """Provides bird collection previews as media sources."""
+    """Provide collections within the account selected in each browser URL."""
 
     name: str = "Bird Buddy"
 
@@ -51,70 +53,79 @@ class BirdBuddyMediaSource(MediaSource):
         data.extend([None] * (3 - len(data)))
         return data[0], data[1], data[2]
 
-    def _get_config_or_raise(self, config_id: str) -> ConfigEntry:
-        """Get a config entry from a URL."""
+    def _get_account(
+        self, config_id: str
+    ) -> tuple[ConfigEntry, BirdBuddyDataUpdateCoordinator]:
+        """Reject stale account links without selecting a different account."""
         entry = self.hass.config_entries.async_get_entry(config_id)
-        if not entry:
-            raise MediaSourceError(f"Unable to find config entry with id: {config_id}")
-        return entry
+        coordinator = self.hass.data.get(DOMAIN, {}).get(config_id)
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
+            or coordinator is None
+        ):
+            raise MediaSourceError("This Bird Buddy account is not loaded")
+        return entry, coordinator
+
+    def _check_loaded(
+        self, config: ConfigEntry, coordinator: BirdBuddyDataUpdateCoordinator
+    ) -> None:
+        """Do not return data if the account unloaded during a remote read."""
+        _, current = self._get_account(config.entry_id)
+        if current is not coordinator:
+            raise MediaSourceError("This Bird Buddy account was reloaded")
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
-        """Resolve media to a url."""
+        """Read media again at playback time, with one bounded expiry retry."""
         config_id, collection_id, media_id = self._parse_identifier(item.identifier)
-
         if not config_id or not collection_id or not media_id:
-            raise Unresolvable(
-                f"Incomplete media identifier specified: {item.identifier}"
-            )
+            raise Unresolvable("Incomplete Bird Buddy media identifier")
+        try:
+            config, coordinator = self._get_account(config_id)
+            for _ in range(2):
+                medias = await coordinator.client.collection(collection_id)
+                self._check_loaded(config, coordinator)
+                media = medias.get(media_id)
+                if media is None:
+                    break
+                if url := _playback_url(media):
+                    return PlayMedia(url, _mime_type(media))
+        except Exception:  # SDK and transport errors must not expose signed URLs
+            raise Unresolvable("Unable to resolve Bird Buddy media") from None
+        raise Unresolvable("Bird Buddy media is missing or expired")
 
-        coordinator: BirdBuddyDataUpdateCoordinator = self.hass.data[DOMAIN][config_id]
-        medias = await coordinator.client.collection(collection_id)
-        media = medias[media_id]
-
-        url = media.content_url
-        if not url:
-            raise Unresolvable(f"Could not resolve media item: {item.identifier}")
-
-        return PlayMedia(url, _mime_type(media))
-
-    async def async_browse_media(
-        self,
-        item: MediaSourceItem,
-    ) -> BrowseMediaSource:
-        """Return media."""
-        if item.identifier:
-            config = None
-            coordinator: BirdBuddyDataUpdateCoordinator | None = None
-            config_id, collection_id, _ = self._parse_identifier(item.identifier)
-            if config_id:
-                config = self._get_config_or_raise(config_id)
-                coordinator = self.hass.data[DOMAIN][config_id]
-
-            if coordinator and not coordinator.client.collections:
-                await coordinator.client.refresh_collections()
-
-            if config and collection_id and coordinator:
-                if (
-                    not coordinator.client.collections
-                    or collection_id not in coordinator.client.collections
-                ):
-                    await coordinator.client.refresh_collections()
-                collection = coordinator.client.collections[collection_id]
+    async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
+        """Browse loaded accounts and their complete collection snapshots."""
+        if not item.identifier:
+            return self._build_media_configs()
+        config_id, collection_id, _ = self._parse_identifier(item.identifier)
+        if not config_id:
+            raise MediaSourceError("Incomplete Bird Buddy account identifier")
+        try:
+            config, coordinator = self._get_account(config_id)
+            collections = await coordinator.client.refresh_collections()
+            self._check_loaded(config, coordinator)
+            if collection_id:
+                collection = collections.get(collection_id)
+                if collection is None:
+                    raise MediaSourceError("This Bird Buddy collection is unavailable")
                 return await self._build_media_collection_entries(
                     config, coordinator, collection
                 )
-
-            if config and coordinator:
-                return await self._build_media_collections(config, coordinator)
-
-        # Root of the media source: show all configured logins
-        return self._build_media_configs()
+            base = self._account_media_source(config)
+            base.children = [
+                self._build_media_collection(config, value)
+                for value in collections.values()
+            ]
+            return base
+        except MediaSourceError:
+            raise
+        except Exception:  # no raw backend payload or private URL in HA errors
+            raise MediaSourceError("Unable to browse Bird Buddy collections") from None
 
     def _account_media_source(self, config: ConfigEntry) -> BrowseMediaSource:
-        # Return one Bird Buddy account source per config entry
-        coordinator: BirdBuddyDataUpdateCoordinator = self.hass.data[DOMAIN][
-            config.entry_id
-        ]
+        _, coordinator = self._get_account(config.entry_id)
         return BrowseMediaSource(
             domain=DOMAIN,
             identifier=config.entry_id,
@@ -124,39 +135,41 @@ class BirdBuddyMediaSource(MediaSource):
             can_play=False,
             can_expand=True,
             children_media_class=MediaClass.DIRECTORY,
-            thumbnail=(user.avatar_url if (user := coordinator.client.user) else None),
+            thumbnail=(
+                _usable_url(user.get("avatarUrl"))
+                if (user := coordinator.client.user)
+                else None
+            ),
         )
 
-    def _build_media_config(self, config: ConfigEntry) -> BrowseMediaSource:
-        """MediaSource for a configured integration (account): list each feeder in the account."""
-        return self._account_media_source(config)
-
     def _build_media_configs(self) -> BrowseMediaSource:
-        """Build the root media source for the whole integration."""
+        """Build the root media source, omitting accounts that are not loaded."""
         return self._root_media_source()
 
     def _account_media_sources(self) -> list[BrowseMediaSource]:
+        loaded = self.hass.data.get(DOMAIN, {})
         return [
             self._account_media_source(entry)
             for entry in self.hass.config_entries.async_entries(DOMAIN)
+            if entry.state is ConfigEntryState.LOADED
+            and loaded.get(entry.entry_id) is not None
         ]
 
     @classmethod
     def _build_media_collection(
-        cls,
-        config: ConfigEntry,
-        collection: Collection,
+        cls, config: ConfigEntry, collection: Collection
     ) -> BrowseMediaSource:
+        cover = collection.cover_media
         return BrowseMediaSource(
             domain=DOMAIN,
             identifier=f"{config.entry_id}#{collection.collection_id}",
             media_class=MediaClass.DIRECTORY,
             media_content_type=MediaType.IMAGE,
-            title=collection.bird_name,
+            title=collection.bird_name or "Unknown species",
             can_play=False,
             can_expand=True,
             children_media_class=MediaClass.IMAGE,
-            thumbnail=collection.cover_media.thumbnail_url,
+            thumbnail=_usable_url(cover.get("thumbnailUrl")),
         )
 
     async def _build_media_collection_entries(
@@ -166,37 +179,20 @@ class BirdBuddyMediaSource(MediaSource):
         collection: Collection,
     ) -> BrowseMediaSource:
         base = self._build_media_collection(config, collection)
-        base.children = []
         medias = await coordinator.client.collection(collection.collection_id)
-        for media_id, media in medias.items():
-            relative_title = _best_timedelta_title(media.created_at, dt_util.utcnow())
-            base.children.append(
-                BrowseMediaSource(
-                    domain=DOMAIN,
-                    identifier=f"{config.entry_id}#{collection.collection_id}#{media_id}",
-                    media_class=_media_class(media),
-                    media_content_type=_mime_type(media),
-                    title=relative_title,
-                    can_play=media.is_video,
-                    can_expand=media.is_video,
-                    thumbnail=media.thumbnail_url,
-                )
-            )
-        return base
-
-    async def _build_media_collections(
-        self,
-        config: ConfigEntry,
-        coordinator: BirdBuddyDataUpdateCoordinator,
-    ) -> BrowseMediaSource:
-        base = self._account_media_source(config)
-        collections = await coordinator.client.refresh_collections()
+        self._check_loaded(config, coordinator)
         base.children = [
-            self._build_media_collection(
-                config,
-                c,
+            BrowseMediaSource(
+                domain=DOMAIN,
+                identifier=f"{config.entry_id}#{collection.collection_id}#{media_id}",
+                media_class=_media_class(media),
+                media_content_type=_mime_type(media),
+                title=_best_timedelta_title(_media_timestamp(media), dt_util.utcnow()),
+                can_play=True,
+                can_expand=False,
+                thumbnail=_usable_url(media.get("thumbnailUrl")),
             )
-            for _, c in collections.items()
+            for media_id, media in medias.items()
         ]
         return base
 
@@ -206,6 +202,33 @@ async def async_get_media_source(hass: HomeAssistant) -> BirdBuddyMediaSource:
     return BirdBuddyMediaSource(hass)
 
 
+def _usable_url(value: object) -> str | None:
+    """Missing or malformed expiry is unknown; an explicit expiry is enforced."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme not in {"https", "http"} or not parsed.netloc:
+        return None
+    try:
+        if is_media_expired(value):
+            return None
+    except (TypeError, ValueError, OverflowError):
+        # Older client versions can raise on malformed Expires metadata.
+        return value
+    return value
+
+
+def _playback_url(media: Media) -> str | None:
+    if url := _usable_url(media.get("contentUrl")):
+        return url
+    if _media_class(media) is MediaClass.IMAGE:
+        return _usable_url(media.get("thumbnailUrl"))
+    return None
+
+
 def _media_class(media: Media) -> MediaClass:
     if media.get("__typename") == "MediaVideo":
         return MediaClass.VIDEO
@@ -213,34 +236,32 @@ def _media_class(media: Media) -> MediaClass:
 
 
 def _mime_type(media: Media) -> str:
-    # TODO: Media class should expose this
-    if media.get("__typename") == "MediaVideo":
-        return "video/mp4"
-    return "image/jpeg"
+    return "video/mp4" if _media_class(media) is MediaClass.VIDEO else "image/jpeg"
 
 
-def _best_timedelta_title(other: datetime, now: datetime) -> str:
-    # TODO: better way to get easily recognizeable, localized, and relative (as needed) datetimes.
+def _media_timestamp(media: Media) -> datetime | None:
+    value = media.get("createdAt")
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if isinstance(value, datetime):
+            return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return None
 
+
+def _best_timedelta_title(other: datetime | None, now: datetime) -> str:
+    if other is None:
+        return "Unknown capture time"
     other = other.astimezone(dt_util.DEFAULT_TIME_ZONE).replace(microsecond=0)
     if other > now:
-        # whoops?
         return other.strftime("%c")
     delta = now - other
-
     if delta.days < 1:
-        # use "x <units> ago" relative string for < 24 hours
-        # possibly "today <time>" or just "<H:m>" time
         return dt_util.get_age(other) + " ago"
-    # if days == 1, "yesterday"? "yesterday %X"?
-
     if delta.days < 7:
-        # 1-7 days, use "<dow> <time>"
         return other.strftime("%a, %X")
-
     if delta.days < 365:
-        # within a year, full localized date+time
         return other.strftime("%c")
-
-    # More than a year, show date only
     return other.strftime("%x")
