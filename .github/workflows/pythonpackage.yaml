@@ -13,7 +13,8 @@ permissions:
 jobs:
   test:
     name: Full suite - HA ${{ matrix.ha }}
-    runs-on: ubuntu-latest
+    # The pinned Python 3.14.4 toolcache is available for Ubuntu 24.04, not 26.04.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +45,7 @@ jobs:
 
   quality:
     name: Lint and type check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
@@ -59,7 +60,7 @@ jobs:
 
   current-runtime-smoke:
     name: Import smoke - HA 2026.11.1 (no harness)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
