@@ -1,10 +1,9 @@
 """Bird Buddy Media Source"""
 
 from datetime import datetime
-from typing import Optional, cast
 from birdbuddy.media import Collection, Media
 
-from homeassistant.components.media_player import MediaClass, MediaType
+from homeassistant.components.media_player.const import MediaClass, MediaType
 from homeassistant.components.media_source.error import MediaSourceError, Unresolvable
 from homeassistant.components.media_source.models import (
     BrowseMediaSource,
@@ -45,13 +44,12 @@ class BirdBuddyMediaSource(MediaSource):
 
     @callback
     @classmethod
-    def _parse_identifier(cls, identifier: str) -> tuple[str, str, str, str]:
-        base = [None] * 3
-        data = identifier.split("#", 2)
-        return cast(
-            tuple[Optional[str], Optional[str], Optional[str]],
-            tuple(data + base)[:3],  # type: ignore[operator]
-        )
+    def _parse_identifier(
+        cls, identifier: str
+    ) -> tuple[str | None, str | None, str | None]:
+        data: list[str | None] = list(identifier.split("#", 2))
+        data.extend([None] * (3 - len(data)))
+        return data[0], data[1], data[2]
 
     def _get_config_or_raise(self, config_id: str) -> ConfigEntry:
         """Get a config entry from a URL."""
@@ -86,7 +84,7 @@ class BirdBuddyMediaSource(MediaSource):
         """Return media."""
         if item.identifier:
             config = None
-            coordinator: BirdBuddyDataUpdateCoordinator = None
+            coordinator: BirdBuddyDataUpdateCoordinator | None = None
             config_id, collection_id, _ = self._parse_identifier(item.identifier)
             if config_id:
                 config = self._get_config_or_raise(config_id)
@@ -95,7 +93,7 @@ class BirdBuddyMediaSource(MediaSource):
             if coordinator and not coordinator.client.collections:
                 await coordinator.client.refresh_collections()
 
-            if config and collection_id:
+            if config and collection_id and coordinator:
                 if (
                     not coordinator.client.collections
                     or collection_id not in coordinator.client.collections
@@ -106,7 +104,7 @@ class BirdBuddyMediaSource(MediaSource):
                     config, coordinator, collection
                 )
 
-            if config:
+            if config and coordinator:
                 return await self._build_media_collections(config, coordinator)
 
         # Root of the media source: show all configured logins
@@ -126,7 +124,7 @@ class BirdBuddyMediaSource(MediaSource):
             can_play=False,
             can_expand=True,
             children_media_class=MediaClass.DIRECTORY,
-            thumbnail=coordinator.client.user.avatar_url,
+            thumbnail=(user.avatar_url if (user := coordinator.client.user) else None),
         )
 
     def _build_media_config(self, config: ConfigEntry) -> BrowseMediaSource:

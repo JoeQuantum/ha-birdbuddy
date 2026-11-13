@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import voluptuous as vol
 
@@ -14,6 +14,7 @@ from homeassistant.components.homeassistant.triggers import event as event_trigg
 from homeassistant.const import (
     CONF_DEVICE_ID,
     CONF_DOMAIN,
+    CONF_EVENT_DATA,
     CONF_PLATFORM,
     CONF_TYPE,
 )
@@ -47,7 +48,7 @@ async def async_validate_trigger_config(
     hass: HomeAssistant, config: ConfigType
 ) -> ConfigType:
     """Validate config."""
-    config = TRIGGER_SCHEMA(config)
+    config = cast(ConfigType, TRIGGER_SCHEMA(config))
     coordinator = _find_coordinator_by_device(hass, config[CONF_DEVICE_ID])
     if not coordinator:
         raise InvalidDeviceAutomationConfig()
@@ -94,12 +95,15 @@ async def async_attach_trigger(
         # Add feeder id to trigger event data
         # The event will include .sighting.feeder.id, so that's what we will trigger on
         event_data["sighting"] = {"feeder": {"id": config[CONF_FEEDER_ID]}}
-    event_config = event_trigger.TRIGGER_SCHEMA(
-        {
-            event_trigger.CONF_PLATFORM: "event",
-            event_trigger.CONF_EVENT_TYPE: EVENT_NEW_POSTCARD_SIGHTING,
-            event_trigger.CONF_EVENT_DATA: event_data,
-        }
+    event_config = cast(
+        ConfigType,
+        event_trigger.TRIGGER_SCHEMA(
+            {
+                CONF_PLATFORM: "event",
+                event_trigger.CONF_EVENT_TYPE: EVENT_NEW_POSTCARD_SIGHTING,
+                CONF_EVENT_DATA: event_data,
+            }
+        ),
     )
     return await event_trigger.async_attach_trigger(
         hass, event_config, action, trigger_info, platform_type="device"

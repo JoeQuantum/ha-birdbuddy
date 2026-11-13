@@ -20,7 +20,7 @@ def _feeder_id_for_device(
 def _find_coordinator_by_feeder(
     hass: HomeAssistant,
     feeder_id: str,
-) -> BirdBuddyDataUpdateCoordinator:
+) -> BirdBuddyDataUpdateCoordinator | None:
     """Find the first matching coordinator containing this `feeder_id`."""
     coordinators: list[BirdBuddyDataUpdateCoordinator] = list(
         hass.data[DOMAIN].values()

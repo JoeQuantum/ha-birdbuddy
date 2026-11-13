@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # These pins select compatibility targets and must move together with
+      # tests/ha_targets.json, the workflow matrix and the documented minimum.
+      - dependency-name: pytest-homeassistant-custom-component
+      - dependency-name: homeassistant
+      # The client requires a coordinated integration/API migration.
+      - dependency-name: pybirdbuddy
+    groups:
+      development-tools:
+        patterns: [ruff, pyright]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

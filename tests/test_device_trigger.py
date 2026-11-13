@@ -1,9 +1,12 @@
 """The tests for Bird Buddy device triggers."""
+
 import pytest
 from pytest_unordered import unordered
-from homeassistant.components import automation
+from homeassistant.components.automation.const import DOMAIN as AUTOMATION_DOMAIN
 from homeassistant.components.device_automation import (
     DeviceAutomationType,
+)
+from homeassistant.components.device_automation.exceptions import (
     InvalidDeviceAutomationConfig,
 )
 from homeassistant.config_entries import ConfigEntryState
@@ -24,9 +27,9 @@ async def setup_automation(hass, device_id, feeder_id, trigger_type):
     """Set up an automation trigger for testing triggering."""
     return await async_setup_component(
         hass,
-        automation.DOMAIN,
+        AUTOMATION_DOMAIN,
         {
-            automation.DOMAIN: [
+            AUTOMATION_DOMAIN: [
                 {
                     "trigger": {
                         "platform": "device",
@@ -105,7 +108,9 @@ async def test_does_not_fire_on_postcard_event_for_other_feeder(hass, calls):
 
 async def test_config_schema(hass, device_reg):
     """Test we get the expected triggers from a birdbuddy."""
-    config_entry = MockConfigEntry(domain="birdbuddy", data={}, state=ConfigEntryState.LOADED)
+    config_entry = MockConfigEntry(
+        domain="birdbuddy", data={}, state=ConfigEntryState.LOADED
+    )
     config_entry.add_to_hass(hass)
     device_entry = device_reg.async_get_or_create(
         config_entry_id=config_entry.entry_id,
@@ -124,7 +129,9 @@ async def test_config_schema(hass, device_reg):
 
 async def test_config_schema_no_coordinator(hass, device_reg):
     """Test we get the expected triggers from a birdbuddy."""
-    config_entry = MockConfigEntry(domain="birdbuddy", data={}, state=ConfigEntryState.LOADED)
+    config_entry = MockConfigEntry(
+        domain="birdbuddy", data={}, state=ConfigEntryState.LOADED
+    )
     config_entry.add_to_hass(hass)
     device_entry = device_reg.async_get_or_create(
         config_entry_id=config_entry.entry_id,

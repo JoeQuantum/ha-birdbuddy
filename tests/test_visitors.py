@@ -42,9 +42,7 @@ def _feed_item(
                 "__typename": "MediaImage",
                 "id": media_id,
                 "contentUrl": media_url,
-                "thumbnailUrl": (
-                    f"https://thumb.example.com/{feeder_id}/{media_id}"
-                ),
+                "thumbnailUrl": (f"https://thumb.example.com/{feeder_id}/{media_id}"),
                 "createdAt": created_at.isoformat(),
             },
             "species": [
@@ -84,9 +82,7 @@ def _mystery_feed_item(
                 "__typename": "MediaImage",
                 "id": media_id,
                 "contentUrl": media_url,
-                "thumbnailUrl": (
-                    f"https://thumb.example.com/{feeder_id}/{media_id}"
-                ),
+                "thumbnailUrl": (f"https://thumb.example.com/{feeder_id}/{media_id}"),
                 "createdAt": created_at.isoformat(),
             },
             # No "species" key at all — the defining trait of a mystery visitor.
@@ -217,7 +213,7 @@ def test_update_rebuilds_recent_top_n_sorted_by_created_at() -> None:
 
     # Top 3 sorted newest-first.
     assert len(visitors.recent) == 3
-    species_order = [v.species.name for v in visitors.recent]
+    species_order = [v.species.name if v.species else None for v in visitors.recent]
     assert species_order == ["Bluejay", "Goldfinch", "Robin"]
 
 
@@ -251,7 +247,9 @@ def test_latest_media_and_species_return_head_for_backward_compat() -> None:
     asyncio.run(visitors._update_latest_visitor())
 
     assert visitors.latest_media is visitors.recent[0].media
+    assert visitors.latest_media is not None
     assert visitors.latest_media.content_url == "https://cdn.example.com/newest.jpg"
+    assert visitors.latest_species is not None
     assert visitors.latest_species.name == "Cardinal"
 
 
@@ -279,7 +277,9 @@ def test_dedupe_off_preserves_consecutive_same_species() -> None:
     asyncio.run(visitors._update_latest_visitor())
 
     assert len(visitors.recent) == 4
-    assert all(v.species.name == "Cardinal" for v in visitors.recent)
+    assert all(
+        v.species is not None and v.species.name == "Cardinal" for v in visitors.recent
+    )
 
 
 def test_dedupe_on_collapses_same_species() -> None:
@@ -327,7 +327,7 @@ def test_dedupe_on_collapses_same_species() -> None:
 
     asyncio.run(visitors._update_latest_visitor())
 
-    species_names = [v.species.name for v in visitors.recent]
+    species_names = [v.species.name if v.species else None for v in visitors.recent]
     assert species_names == ["Cardinal", "Goldfinch", "Bluejay"]
 
 
@@ -353,6 +353,7 @@ def test_empty_feed_is_safe_and_falls_back_to_collections_species_only() -> None
 
     assert visitors.recent == []
     assert visitors.latest_media is None
+    assert visitors.latest_species is not None
     assert visitors.latest_species.name == "Sparrow"
 
 
@@ -400,6 +401,7 @@ def test_rebuild_replaces_stale_entries_each_poll() -> None:
 
     asyncio.run(visitors._update_latest_visitor())
     assert len(visitors.recent) == 1
+    assert visitors.recent[0].species is not None
     assert visitors.recent[0].species.name == "Bird0"
 
 
@@ -432,6 +434,7 @@ def test_mystery_visitors_surface_with_none_species() -> None:
     assert len(visitors.recent) == 2
     assert all(v.species is None for v in visitors.recent)
     # Newest-first, and media is present so the image entity has something.
+    assert visitors.latest_media is not None
     assert visitors.latest_media.content_url == "https://cdn.example.com/mystery1.jpg"
     assert visitors.latest_species is None
 
@@ -500,6 +503,7 @@ def test_recent_entries_are_serializable_to_sensor_attribute_shape() -> None:
     entry = visitors.recent[0]
     assert isinstance(entry, RecentVisitor)
     assert entry.media.content_url == "https://cdn.example.com/m1.jpg"
+    assert entry.species is not None
     assert entry.species.name == "Cardinal"
     assert entry.created_at is not None
 
@@ -537,6 +541,7 @@ def test_raw_postcard_media_surfaces_with_none_species() -> None:
 
     assert len(visitors.recent) == 1
     assert visitors.recent[0].species is None
+    assert visitors.latest_media is not None
     assert visitors.latest_media.content_url == "https://cdn.example.com/p1.jpg"
 
 
@@ -600,6 +605,7 @@ def test_typed_entry_wins_over_postcard_for_same_node() -> None:
     asyncio.run(visitors.async_update())
 
     assert len(visitors.recent) == 1
+    assert visitors.recent[0].species is not None
     assert visitors.recent[0].species.name == "Cardinal"
     assert visitors.recent[0].media.content_url == "https://cdn.example.com/typed.jpg"
 

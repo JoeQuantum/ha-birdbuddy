@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import timedelta
+from typing import Any
 
 from birdbuddy.client import BirdBuddy
 from birdbuddy.exceptions import GraphqlError
@@ -12,9 +13,8 @@ from birdbuddy.feeder import Feeder
 from birdbuddy.media import Collection
 from birdbuddy.sightings import PostcardSighting, SightingFinishStrategy
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import EventOrigin, HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, EventOrigin, HomeAssistant
 from homeassistant.helpers.update_coordinator import (
-    CALLBACK_TYPE,
     DataUpdateCoordinator,
     UpdateFailed,
 )
@@ -103,7 +103,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             self.visitors[feeder.id] = RecentVisitors(feeder, self.client, self.hass)
         return self.visitors[feeder.id].register_callback(listener)
 
-    async def _process_feed(self, feed: list[FeedNode]) -> bool:
+    async def _process_feed(self, feed: list[FeedNode]) -> None:
         """Attempt to process new feed items.
 
         There are some options for how we can process these:
@@ -191,9 +191,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         if not self.client.feeders:
             raise UpdateFailed("No Feeders found")
 
-        feeders = {
-            id: BirdBuddyDevice(f) for (id, f) in self.client.feeders.items()
-        }  # noqa: A001
+        feeders = {id: BirdBuddyDevice(f) for (id, f) in self.client.feeders.items()}  # noqa: A001
         # pylint: disable=invalid-name
         for i, f in feeders.items():
             if i in self.feeders:
@@ -217,9 +215,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
                 )
                 self._feed_events_seeded = True
             except Exception as exc:  # noqa: BLE001
-                LOGGER.debug(
-                    "Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc
-                )
+                LOGGER.debug("Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc)
 
         # Refresh the recent-visitor surface every poll. The event-driven path
         # (RecentVisitors._on_new_postcard) only fires when a postcard converts
@@ -277,7 +273,8 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             if node.get("__typename") != "FeedItemNewPostcard":
                 continue
             images = [
-                m for m in (node.get("medias") or [])
+                m
+                for m in (node.get("medias") or [])
                 if m.get("__typename") == "MediaImage"
             ]
             if images and node.get("id"):
@@ -320,7 +317,8 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             media = postcard_media.get(item_id)
         else:
             images = [
-                m for m in _media_list(node)
+                m
+                for m in _media_list(node)
                 if m and m.get("__typename") == "MediaImage"
             ]
             media = images[0] if images else None
@@ -345,7 +343,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             origin=EventOrigin.remote,
         )
 
-    async def handle_collect_postcard(self, data: dict[str, any]) -> bool:
+    async def handle_collect_postcard(self, data: dict[str, Any]) -> bool:
         """Handle the `birdbuddy.collect_postcard` service call."""
         sighting = PostcardSighting(data["sighting"])
         postcard_id = data["postcard"]["id"]

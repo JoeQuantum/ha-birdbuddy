@@ -77,9 +77,8 @@ class BirdBuddyRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        if (
-            (visitors := self.coordinator.visitors.get(self.feeder.id))
-            and (media := visitors.latest_media)
+        if (visitors := self.coordinator.visitors.get(self.feeder.id)) and (
+            media := visitors.latest_media
         ):
             self._update_url(media)
         self.async_on_remove(
@@ -102,7 +101,7 @@ class BirdBuddyRecentVisitorImageEntity(BirdBuddyMixin, ImageEntity):
             self._attr_entity_picture = None
         super()._handle_coordinator_update()
 
-    def _update_url(self, media: Media) -> None:
+    def _update_url(self, media: Media | None) -> None:
         if (
             media
             and (url := media.content_url or media.thumbnail_url)

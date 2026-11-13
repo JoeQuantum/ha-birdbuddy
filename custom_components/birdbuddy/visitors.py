@@ -1,8 +1,9 @@
 """Helpers for managing recent visitors."""
 
 from dataclasses import dataclass
-from typing import TypeVar
-from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
+from collections.abc import Callable, Mapping
 
 from birdbuddy.birds import Species
 from birdbuddy.client import BirdBuddy
@@ -11,8 +12,7 @@ from birdbuddy.feeder import Feeder
 from birdbuddy.media import Media, is_media_expired
 from birdbuddy.sightings import PostcardSighting
 
-from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers.update_coordinator import CALLBACK_TYPE
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from .const import EVENT_NEW_POSTCARD_SIGHTING, LOGGER, RECENT_VISITOR_COUNT
 from .util import _find_media
@@ -63,8 +63,7 @@ _VISITOR_FEED_TYPES = (
     FeedNodeType.MysteryVisitorResolved,
 )
 
-_RecentVisitors = TypeVar("_RecentVisitors", bound="RecentVisitors")
-type VisitorCallback = Callable[[_RecentVisitors], None]
+type VisitorCallback = Callable[["RecentVisitors"], None]
 
 
 @dataclass(frozen=True)
@@ -79,7 +78,7 @@ class RecentVisitor:
 
     media: Media
     species: Species | None
-    created_at: object
+    created_at: datetime | None
 
 
 class RecentVisitors:
@@ -161,8 +160,8 @@ class RecentVisitors:
         """Start listening for new postcards."""
 
         @callback
-        def filter_my_postcards(event: Event) -> bool:
-            data = event if callable(getattr(event, "get", None)) else event.data
+        def filter_my_postcards(event: Event | Mapping[str, Any]) -> bool:
+            data = event if isinstance(event, Mapping) else event.data
             return self.feeder.id == (
                 data.get("sighting", {}).get("feeder", {}).get("id")
             )
@@ -217,9 +216,11 @@ class RecentVisitors:
         # entry (which carries species) wins if the same node appears in both.
         by_id: dict[str, FeedNode] = {}
         for item in postcard_items:
-            by_id[item.get("id")] = item
+            if item_id := item.get("id"):
+                by_id[item_id] = item
         for item in my_items:
-            by_id[item.get("id")] = item
+            if item_id := item.get("id"):
+                by_id[item_id] = item
         combined = list(by_id.values())
 
         LOGGER.debug(
@@ -237,7 +238,11 @@ class RecentVisitors:
         # would let stale signed CloudFront URLs linger in the list past their
         # TTL; rebuilding gives every entry a fresh URL for free and is
         # restart-safe.
-        sorted_items = sorted(combined, key=lambda x: x.created_at, reverse=True)
+        sorted_items = sorted(
+            combined,
+            key=lambda x: x.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
         recent: list[RecentVisitor] = []
         seen_species: set[str] = set()
         for item in sorted_items:
@@ -269,11 +274,7 @@ class RecentVisitors:
                 "Setting %d recent visitor(s) on %s from feed; latest: %s, %s: %s",
                 len(recent),
                 self.feeder.name,
-                (
-                    recent[0].species.name
-                    if recent[0].species
-                    else "Unknown species"
-                ),
+                (recent[0].species.name if recent[0].species else "Unknown species"),
                 recent[0].created_at,
                 recent[0].media.content_url,
             )
@@ -287,7 +288,7 @@ class RecentVisitors:
                 LOGGER.debug(
                     "Setting fallback recent species on %s from collection: %s",
                     self.feeder.name,
-                    c.species.name,
+                    c.species.name if c.species else None,
                 )
 
         self._notify_listeners()
@@ -321,9 +322,7 @@ class RecentVisitors:
         if not matched and self._sole_feeder:
             # The feeder id isn't in these URLs, but with a single feeder on the
             # account every postcard image is necessarily ours.
-            matched = _find_media(
-                self.feeder.id, nodes, require_feeder_match=False
-            )
+            matched = _find_media(self.feeder.id, nodes, require_feeder_match=False)
             LOGGER.debug(
                 "Feeder %s: attributed %d raw-postcard image(s) without a URL "
                 "match (sole feeder on account)",
@@ -337,7 +336,7 @@ class RecentVisitors:
         for listener in self._listeners:
             listener(self)
 
-    async def _on_new_postcard(self, event: Event | None = None) -> None:
+    async def _on_new_postcard(self, event: Event) -> None:
         """Handle a new postcard sighting."""
         postcard = PostcardSighting(event.data["sighting"])
 
@@ -352,20 +351,22 @@ class RecentVisitors:
         ]:
             species = unlocked[0].species
             LOGGER.debug(
-                "Reporting recent visitor from unlocked: %s", species.name
+                "Reporting recent visitor from unlocked: %s",
+                species.name if species else None,
             )
         elif recognized := [
             s for s in postcard.report.sightings if s.sighting_type.is_recognized
         ]:
             species = recognized[0].species
             LOGGER.debug(
-                "Reporting recent visitor from recognized: %s", species.name
+                "Reporting recent visitor from recognized: %s",
+                species.name if species else None,
             )
         elif guessable := [s for s in postcard.report.sightings if s.suggestions]:
             species = guessable[0].suggestions[0].species
             LOGGER.info(
                 "Reporting recent visitor from unrecognized suggestion: %s",
-                species.name,
+                species.name if species else None,
             )
         else:
             LOGGER.info("Cannot decide species: %s", postcard.report.sightings[0])

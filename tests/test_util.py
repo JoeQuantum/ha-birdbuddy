@@ -26,8 +26,21 @@ def _locale_names(base: str) -> dict[str, str]:
     return {
         loc: f"{base} ({loc})"
         for loc in (
-            "en", "de", "fr", "es", "it", "nl", "pt", "sv",
-            "no", "da", "fi", "pl", "cs", "ja", "zh",
+            "en",
+            "de",
+            "fr",
+            "es",
+            "it",
+            "nl",
+            "pt",
+            "sv",
+            "no",
+            "da",
+            "fi",
+            "pl",
+            "cs",
+            "ja",
+            "zh",
         )
     }
 
@@ -210,7 +223,9 @@ def test_slim_handles_missing_medias_and_video() -> None:
 FEEDER = "feeder-xyz"
 
 
-def _image(media_id: str, *, feeder: str = FEEDER, typename: str = "MediaImage") -> dict:
+def _image(
+    media_id: str, *, feeder: str = FEEDER, typename: str = "MediaImage"
+) -> dict:
     return {
         "__typename": typename,
         "id": media_id,

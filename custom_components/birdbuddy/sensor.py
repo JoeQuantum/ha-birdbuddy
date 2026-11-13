@@ -5,10 +5,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from birdbuddy.birds import Species
-from birdbuddy.feed import FeedNodeType
 from birdbuddy.media import Media, is_media_expired
-from birdbuddy.sightings import PostcardSighting
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -23,11 +20,11 @@ from homeassistant.const import (
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     UnitOfTemperature,
 )
-from homeassistant.helpers.entity import EntityCategory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, EVENT_NEW_POSTCARD_SIGHTING, LOGGER
+from .const import DOMAIN, LOGGER
 from .coordinator import BirdBuddyDataUpdateCoordinator
 from .entity import BirdBuddyMixin
 from .device import BirdBuddyDevice
@@ -139,11 +136,10 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
             "visitors": [
                 {
                     "species": entry.species.name if entry.species else None,
-                    "media_url": entry.media.content_url
-                    or entry.media.thumbnail_url,
+                    "media_url": entry.media.content_url or entry.media.thumbnail_url,
                     "created_at": (
                         entry.created_at.isoformat()
-                        if hasattr(entry.created_at, "isoformat")
+                        if isinstance(entry.created_at, datetime)
                         else (str(entry.created_at) if entry.created_at else None)
                     ),
                 }
@@ -178,10 +174,10 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
         return None
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         if attr := super().native_value:
             # Postcard listener set the attribute directly, use it
-            return attr
+            return str(attr)
         return None
 
     @callback
@@ -241,7 +237,7 @@ class BirdBuddyStateEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-state"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> str:
         """Return the state of the sensor."""
         return self.feeder.state.value.lower()
 
@@ -332,7 +328,7 @@ class BirdBuddyFoodStateEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-food-state"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> str:
         """Return the state of the sensor."""
         return self.feeder.food.value.lower()
 

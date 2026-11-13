@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 from birdbuddy.exceptions import GraphqlError
@@ -43,9 +44,7 @@ async def test_coordinator_defaults_polling_interval(hass: HomeAssistant) -> Non
     entry = _config_entry()
     entry.add_to_hass(hass)
     coordinator = BirdBuddyDataUpdateCoordinator(hass, MagicMock(), entry)
-    assert coordinator.update_interval == timedelta(
-        minutes=DEFAULT_POLLING_INTERVAL
-    )
+    assert coordinator.update_interval == timedelta(minutes=DEFAULT_POLLING_INTERVAL)
 
 
 def _make_coordinator(*, listener_count: int = 1) -> BirdBuddyDataUpdateCoordinator:
@@ -119,7 +118,7 @@ def test_failing_postcard_doesnt_kill_subsequent_postcards() -> None:
 
     # The bad postcard's error was swallowed; the good one fired an event.
     assert coordinator.client.sighting_from_postcard.await_count == 2
-    fires = coordinator.hass.bus.fire.call_args_list
+    fires = cast(MagicMock, coordinator.hass.bus.fire).call_args_list
     assert len(fires) == 1, f"expected 1 event fired, got {len(fires)}: {fires}"
     fired_data = fires[0].kwargs["event_data"]
     assert fired_data["postcard"]["id"] == "good-postcard"
@@ -144,7 +143,7 @@ def test_failing_postcard_doesnt_raise() -> None:
     asyncio.run(coordinator._process_feed([_postcard("p1"), _postcard("p2")]))
 
     assert coordinator.client.sighting_from_postcard.await_count == 2
-    coordinator.hass.bus.fire.assert_not_called()
+    cast(MagicMock, coordinator.hass.bus.fire).assert_not_called()
 
 
 def _make_poll_coordinator() -> BirdBuddyDataUpdateCoordinator:
@@ -196,10 +195,10 @@ def test_no_listeners_skips_sighting_conversion() -> None:
     error entirely if the user isn't using auto-collection). Pre-existing
     behavior we want to verify is preserved."""
     coordinator = _make_coordinator(listener_count=0)
-    coordinator.hass.bus.async_listeners.return_value = {}
+    cast(MagicMock, coordinator.hass.bus.async_listeners).return_value = {}
     coordinator.client.sighting_from_postcard = AsyncMock(return_value=_sighting())
 
     asyncio.run(coordinator._process_feed([_postcard("p1")]))
 
     coordinator.client.sighting_from_postcard.assert_not_called()
-    coordinator.hass.bus.fire.assert_not_called()
+    cast(MagicMock, coordinator.hass.bus.fire).assert_not_called()

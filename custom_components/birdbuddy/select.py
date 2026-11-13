@@ -11,7 +11,7 @@ from homeassistant.components.select import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -59,11 +59,7 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
         (and ideally each `translations/*.json`), or HA will fall back to
         displaying the raw value string.
         """
-        return [
-            p.value.lower()
-            for p in PowerProfile
-            if p is not PowerProfile.UNKNOWN
-        ]
+        return [p.value.lower() for p in PowerProfile if p is not PowerProfile.UNKNOWN]
 
     @property
     def current_option(self) -> str | None:
@@ -74,12 +70,12 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
         return super().available and self.feeder.is_owner
 
     async def async_select_option(self, option: str) -> None:
-        option = PowerProfile(option.upper())
-        assert option != PowerProfile.UNKNOWN
+        profile = PowerProfile(option.upper())
+        assert profile != PowerProfile.UNKNOWN
         try:
             result = await self.coordinator.client.set_power_profile(
                 self.feeder,
-                option,
+                profile,
             )
             if result:
                 self.feeder.update(result)

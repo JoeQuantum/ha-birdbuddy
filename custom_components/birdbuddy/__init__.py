@@ -49,9 +49,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-def _async_migrate_enabled_defaults(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> None:
+def _async_migrate_enabled_defaults(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Re-enable entities whose default was promoted from disabled to enabled."""
     registry = er.async_get(hass)
     for ent in er.async_entries_for_config_entry(registry, entry.entry_id):
@@ -129,12 +127,11 @@ async def async_remove_config_entry_device(
     return True
 
 
-def _setup_services(hass: HomeAssistant) -> bool:
+def _setup_services(hass: HomeAssistant) -> None:
     """Register the BirdBuddy service(s)"""
 
     async def handle_collect_postcard(service: ServiceCall) -> None:
         feeder_id = service.data["sighting"]["feeder"]["id"]
-        coordinator: BirdBuddyDataUpdateCoordinator
         coordinator = _find_coordinator_by_feeder(hass, feeder_id)
         if not coordinator:
             # We could not find this specific feeder. This could mean that the Feeder has been

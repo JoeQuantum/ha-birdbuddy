@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from birdbuddy.feeder import FeederState
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -10,7 +9,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
@@ -55,7 +54,7 @@ class BirdBuddyOffGridSwitch(BirdBuddyMixin, SwitchEntity):
         return super().available and self.feeder.is_owner
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         return self.feeder.is_off_grid
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -95,7 +94,7 @@ class BirdBuddyAudioSwitch(BirdBuddyMixin, SwitchEntity):
         return super().available and self.feeder.is_owner
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         return self.feeder.is_audio_enabled
 
     @property

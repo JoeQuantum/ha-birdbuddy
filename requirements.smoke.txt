@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Exact current-runtime import smoke test; intentionally no HA test harness.
+# Passing this lane is not equivalent to the full integration test suite.
+homeassistant==2026.11.1

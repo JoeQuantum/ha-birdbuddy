@@ -1,10 +1,5 @@
 -r requirements.txt
 
-# From manifest.json — listed here for clarity; pybirdbuddy comes in via
-# requirements.txt above (don't re-add as editable here, or pip refuses to
-# resolve same package as both regular and editable install).
-python-graphql-client==0.4.3
-
-# for tests
-# For Python 3.12 and above
+# Minimum supported runtime: Home Assistant 2025.1.4 / Python 3.12.
+# This harness owns the HA and pytest pins. Do not pin pytest separately.
 pytest-homeassistant-custom-component==0.13.205

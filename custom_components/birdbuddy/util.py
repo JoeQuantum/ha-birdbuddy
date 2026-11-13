@@ -47,9 +47,7 @@ def _find_media(
         if not item:
             continue
         images = [
-            m
-            for m in _media_list(item)
-            if m and m.get("__typename") == "MediaImage"
+            m for m in _media_list(item) if m and m.get("__typename") == "MediaImage"
         ]
         if not images:
             continue
@@ -104,9 +102,7 @@ def _slim_sighting_node(sighting: dict) -> dict:
         "__typename": sighting.get("__typename"),
         "matchTokens": sighting.get("matchTokens", []),
         "species": _slim_species(sighting.get("species")),
-        "suggestions": [
-            _slim_suggestion(s) for s in sighting.get("suggestions", [])
-        ],
+        "suggestions": [_slim_suggestion(s) for s in sighting.get("suggestions", [])],
     }
 
 
@@ -129,9 +125,7 @@ def slim_event_payload(postcard_data: dict, sighting_data: dict) -> dict:
         },
         "sightingReport": {
             "reportToken": report.get("reportToken"),
-            "sightings": [
-                _slim_sighting_node(s) for s in report.get("sightings", [])
-            ],
+            "sightings": [_slim_sighting_node(s) for s in report.get("sightings", [])],
         },
     }
     if medias := sighting_data.get("medias"):

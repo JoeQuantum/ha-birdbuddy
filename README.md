@@ -16,6 +16,8 @@ This fork is a drop-in replacement: same domain, same entity IDs, same event/ser
 
 ## Prior to installation
 
+Requires Home Assistant **2025.1.4 or newer**. See [the compatibility matrix and development checks](DEVELOPMENT.md) for the full-suite and current-runtime smoke targets.
+
 You will need your Bird Buddy `email` and `password`.
 
 > **Note**

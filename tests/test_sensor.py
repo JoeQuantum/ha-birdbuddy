@@ -44,7 +44,9 @@ def test_state_and_picture_update_together_on_recognized_postcard() -> None:
     """Baseline: when a recognized bird arrives, both update to that sighting."""
     sensor = _make_sensor()
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
-        sensor._on_recent_visitor(_visitors(_media("cardinal.jpg"), _species("Cardinal")))
+        sensor._on_recent_visitor(
+            _visitors(_media("cardinal.jpg"), _species("Cardinal"))
+        )
     assert sensor._attr_native_value == "Cardinal"
     assert sensor._attr_entity_picture == "cardinal.jpg"
 
@@ -92,9 +94,7 @@ def test_species_only_update_preserves_picture() -> None:
     sensor = _make_sensor()
 
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
-        sensor._on_recent_visitor(
-            _visitors(_media("first.jpg"), _species("Cardinal"))
-        )
+        sensor._on_recent_visitor(_visitors(_media("first.jpg"), _species("Cardinal")))
 
     # Now species arrives without media (e.g. backfilled from collections).
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
@@ -134,7 +134,9 @@ def test_visitors_attribute_populated_from_recent_list() -> None:
     base = datetime(2026, 5, 30, 12, 0, 0, tzinfo=timezone.utc)
     recent = [
         _recent_entry("Cardinal", "https://cdn.example.com/0.jpg", base),
-        _recent_entry("Goldfinch", "https://cdn.example.com/1.jpg", base.replace(hour=11)),
+        _recent_entry(
+            "Goldfinch", "https://cdn.example.com/1.jpg", base.replace(hour=11)
+        ),
         _recent_entry(None, "https://cdn.example.com/2.jpg", base.replace(hour=10)),
     ]
 

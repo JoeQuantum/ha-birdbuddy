@@ -5,7 +5,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import BirdBuddyDataUpdateCoordinator, BirdBuddyDevice
 
 
-class BirdBuddyMixin(CoordinatorEntity, RestoreEntity):
+class BirdBuddyMixin(CoordinatorEntity[BirdBuddyDataUpdateCoordinator], RestoreEntity):
     """Helper for all Bird Buddy entities"""
 
     feeder: BirdBuddyDevice
@@ -21,7 +21,7 @@ class BirdBuddyMixin(CoordinatorEntity, RestoreEntity):
         self._attr_device_info = feeder.device_info
 
     def _handle_coordinator_update(self) -> None:
-        self.device_info.update(self.feeder.device_info)
+        self._attr_device_info = self.feeder.device_info
         return super()._handle_coordinator_update()
 
     @property

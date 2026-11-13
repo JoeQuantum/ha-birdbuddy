@@ -104,7 +104,9 @@ def _fired(coordinator) -> list[dict]:
 
 def test_fires_once_per_new_item() -> None:
     c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1"), _sighting_node("s2")]))
+    c.client.feed = AsyncMock(
+        return_value=_feed([_sighting_node("s1"), _sighting_node("s2")])
+    )
 
     asyncio.run(c._fire_new_feed_item_events(seed_only=False))
 
@@ -127,7 +129,9 @@ def test_does_not_refire_on_repeat() -> None:
 
 def test_seed_only_marks_without_firing() -> None:
     c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1"), _sighting_node("s2")]))
+    c.client.feed = AsyncMock(
+        return_value=_feed([_sighting_node("s1"), _sighting_node("s2")])
+    )
 
     asyncio.run(c._fire_new_feed_item_events(seed_only=True))
     assert _fired(c) == []

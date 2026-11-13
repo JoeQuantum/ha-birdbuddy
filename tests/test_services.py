@@ -1,4 +1,5 @@
 """Test the Bird Buddy config flow."""
+
 from unittest.mock import ANY, AsyncMock, patch, PropertyMock
 
 from birdbuddy.sightings import SightingFinishStrategy
@@ -28,17 +29,18 @@ def _mock_birdbuddy_setup():
     it). The visitor-update path also touches several library methods, so we
     stub it whole.
     """
-    with patch(
-        "birdbuddy.client.BirdBuddy.refresh", return_value=True
-    ), patch(
-        "birdbuddy.client.BirdBuddy.refresh_feed", return_value=[]
-    ), patch(
-        "birdbuddy.client.BirdBuddy.feeders",
-        new_callable=PropertyMock,
-        return_value={"feeder id": {"id": "feeder id", "name": "Feeder"}},
-    ), patch(
-        "custom_components.birdbuddy.visitors.RecentVisitors._update_latest_visitor",
-        new=AsyncMock(return_value=None),
+    with (
+        patch("birdbuddy.client.BirdBuddy.refresh", return_value=True),
+        patch("birdbuddy.client.BirdBuddy.refresh_feed", return_value=[]),
+        patch(
+            "birdbuddy.client.BirdBuddy.feeders",
+            new_callable=PropertyMock,
+            return_value={"feeder id": {"id": "feeder id", "name": "Feeder"}},
+        ),
+        patch(
+            "custom_components.birdbuddy.visitors.RecentVisitors._update_latest_visitor",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         yield
 

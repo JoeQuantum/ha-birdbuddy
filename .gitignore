@@ -5,6 +5,20 @@ __pycache__
 
 htmlcov/
 .coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.venv-*/
+venv/
+*.egg-info/
+build/
+dist/
+junit.xml
+.DS_Store
+.env
+*.dump.json
 
 # Local throwaway live-API validation scripts — never commit
 scratch_*.py

@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from homeassistant.components.image import ImageEntity
+from homeassistant.helpers.typing import UndefinedType
 
 from custom_components.birdbuddy.image import BirdBuddyRecentVisitorImageEntity
+
+IMAGE_TIME = datetime(2026, 5, 30, 12, tzinfo=timezone.utc)
 
 
 def _make_image_entity(
@@ -40,12 +44,13 @@ def test_handle_coordinator_update_clears_expired_url() -> None:
     entity = _make_image_entity()
     entity._attr_image_url = "https://cdn.example.com/bird.jpg?Expires=1"
     entity._attr_entity_picture = entity._attr_image_url
-    entity._attr_image_last_updated = "old"
+    entity._attr_image_last_updated = IMAGE_TIME
 
-    with patch(
-        "custom_components.birdbuddy.image.is_media_expired", return_value=True
-    ), patch(
-        "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+    with (
+        patch("custom_components.birdbuddy.image.is_media_expired", return_value=True),
+        patch(
+            "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+        ),
     ):
         entity._handle_coordinator_update()
 
@@ -60,30 +65,34 @@ def test_handle_coordinator_update_keeps_fresh_url() -> None:
     fresh_url = "https://cdn.example.com/bird.jpg?Expires=99999999999"
     entity._attr_image_url = fresh_url
     entity._attr_entity_picture = fresh_url
-    entity._attr_image_last_updated = "now"
+    entity._attr_image_last_updated = IMAGE_TIME
 
-    with patch(
-        "custom_components.birdbuddy.image.is_media_expired", return_value=False
-    ), patch(
-        "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+    with (
+        patch("custom_components.birdbuddy.image.is_media_expired", return_value=False),
+        patch(
+            "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+        ),
     ):
         entity._handle_coordinator_update()
 
     assert entity._attr_image_url == fresh_url
     assert entity._attr_entity_picture == fresh_url
-    assert entity._attr_image_last_updated == "now"
+    assert entity._attr_image_last_updated == IMAGE_TIME
 
 
 @pytest.mark.parametrize("url", [object.__new__(ImageEntity).image_url, None, ""])
-def test_handle_coordinator_update_noop_without_url(url: object) -> None:
+def test_handle_coordinator_update_noop_without_url(
+    url: str | None | UndefinedType,
+) -> None:
     """An unset URL must not be passed to the signed-URL expiry parser."""
     entity = _make_image_entity()
     entity._attr_image_url = url
 
-    with patch(
-        "custom_components.birdbuddy.image.is_media_expired"
-    ) as mock_expired, patch(
-        "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+    with (
+        patch("custom_components.birdbuddy.image.is_media_expired") as mock_expired,
+        patch(
+            "custom_components.birdbuddy.entity.BirdBuddyMixin._handle_coordinator_update"
+        ),
     ):
         entity._handle_coordinator_update()
 
@@ -92,14 +101,12 @@ def test_handle_coordinator_update_noop_without_url(url: object) -> None:
 
 
 @pytest.mark.parametrize("url", [object.__new__(ImageEntity).image_url, None, ""])
-def test_update_url_noop_without_media_or_url(url: object) -> None:
+def test_update_url_noop_without_media_or_url(url: str | None | UndefinedType) -> None:
     """A visitor without media must be safe before any URL is populated."""
     entity = _make_image_entity()
     entity._attr_image_url = url
 
-    with patch(
-        "custom_components.birdbuddy.image.is_media_expired"
-    ) as mock_expired:
+    with patch("custom_components.birdbuddy.image.is_media_expired") as mock_expired:
         entity._update_url(None)
 
     mock_expired.assert_not_called()
@@ -111,7 +118,7 @@ def test_update_url_clears_expired_url_without_new_media() -> None:
     entity = _make_image_entity()
     entity._attr_image_url = "https://cdn.example.com/bird.jpg?Expires=1"
     entity._attr_entity_picture = entity._attr_image_url
-    entity._attr_image_last_updated = "old"
+    entity._attr_image_last_updated = IMAGE_TIME
 
     with patch(
         "custom_components.birdbuddy.image.is_media_expired", return_value=True
@@ -136,13 +143,13 @@ def test_async_added_to_hass_seeds_from_existing_coordinator_state() -> None:
 
     entity = _make_image_entity(coordinator=coordinator)
 
-    with patch(
-        "custom_components.birdbuddy.image.is_media_expired", return_value=False
-    ), patch.object(
-        BirdBuddyRecentVisitorImageEntity, "async_on_remove"
-    ), patch(
-        "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
-        return_value=None,
+    with (
+        patch("custom_components.birdbuddy.image.is_media_expired", return_value=False),
+        patch.object(BirdBuddyRecentVisitorImageEntity, "async_on_remove"),
+        patch(
+            "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
+            return_value=None,
+        ),
     ):
         asyncio.run(entity.async_added_to_hass())
 
@@ -161,9 +168,12 @@ def test_async_added_to_hass_handles_missing_visitor_state() -> None:
 
     entity = _make_image_entity(coordinator=coordinator)
 
-    with patch.object(BirdBuddyRecentVisitorImageEntity, "async_on_remove"), patch(
-        "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
-        return_value=None,
+    with (
+        patch.object(BirdBuddyRecentVisitorImageEntity, "async_on_remove"),
+        patch(
+            "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
+            return_value=None,
+        ),
     ):
         asyncio.run(entity.async_added_to_hass())
 
@@ -181,13 +191,13 @@ def test_async_added_to_hass_skips_seeding_when_media_is_none() -> None:
 
     entity = _make_image_entity(coordinator=coordinator)
 
-    with patch.object(
-        BirdBuddyRecentVisitorImageEntity, "_update_url"
-    ) as mock_update, patch.object(
-        BirdBuddyRecentVisitorImageEntity, "async_on_remove"
-    ), patch(
-        "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
-        return_value=None,
+    with (
+        patch.object(BirdBuddyRecentVisitorImageEntity, "_update_url") as mock_update,
+        patch.object(BirdBuddyRecentVisitorImageEntity, "async_on_remove"),
+        patch(
+            "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
+            return_value=None,
+        ),
     ):
         asyncio.run(entity.async_added_to_hass())
 
