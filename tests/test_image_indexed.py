@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from birdbuddy.media import Media
+from birdbuddy.birds import Species
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -23,14 +25,21 @@ def _make_indexed(index: int) -> BirdBuddyIndexedRecentVisitorImageEntity:
     entity._attr_image_last_updated = None
     entity._attr_entity_picture = None
     entity._cached_image = None
-    entity.feeder = SimpleNamespace(id="f1", name="Backyard")
+    entity.feeder = BirdBuddyDevice({"id": "f1", "name": "Backyard"})
     return entity
 
 
 def _entry(url: str, *, species: str | None = None) -> RecentVisitor:
     return RecentVisitor(
-        media=SimpleNamespace(content_url=url, thumbnail_url=url),
-        species=SimpleNamespace(name=species) if species else None,
+        media=Media(
+            {
+                "id": url,
+                "__typename": "MediaImage",
+                "contentUrl": url,
+                "thumbnailUrl": url,
+            }
+        ),
+        species=Species({"id": species, "name": species}) if species else None,
         created_at=datetime(2026, 5, 30, 12, 0, 0, tzinfo=timezone.utc),
     )
 

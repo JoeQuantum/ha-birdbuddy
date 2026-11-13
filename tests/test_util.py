@@ -278,9 +278,8 @@ def test_find_media_filters_other_feeders() -> None:
     assert _find_media(FEEDER, [node]) == []
 
 
-def test_find_media_without_feeder_match_accepts_any_image() -> None:
-    """With `require_feeder_match=False`, an image whose URL doesn't carry this
-    feeder's id is still accepted (used for the single-feeder postcard case)."""
+def test_find_media_cannot_opt_out_of_feeder_attribution() -> None:
+    """A legacy opt-out flag cannot assign an unknown asset to this feeder."""
     node = FeedNode(
         {
             "__typename": "FeedItemNewPostcard",
@@ -289,9 +288,7 @@ def test_find_media_without_feeder_match_accepts_any_image() -> None:
         }
     )
     assert _find_media(FEEDER, [node]) == []
-    out = _find_media(FEEDER, [node], require_feeder_match=False)
-    assert len(out) == 1
-    assert out[0]["media"]["id"] == "m1"
+    assert _find_media(FEEDER, [node], require_feeder_match=False) == []
 
 
 def test_find_media_ignores_video_only_nodes() -> None:
@@ -304,4 +301,24 @@ def test_find_media_ignores_video_only_nodes() -> None:
             "media": _image("v1", typename="MediaVideo"),
         }
     )
+    assert _find_media(FEEDER, [node]) == []
+
+
+def test_explicit_attribution_overrides_conflicting_url_hint() -> None:
+    node = FeedNode(
+        {
+            "id": "n1",
+            "__typename": "FeedItemNewPostcard",
+            "feeder": {"id": "other"},
+            "media": _image("m1"),
+        }
+    )
+    assert _find_media(FEEDER, [node]) == []
+
+
+def test_query_value_or_substring_is_not_feeder_attribution() -> None:
+    media = _image("m1")
+    media["contentUrl"] = f"https://cdn.example.invalid/other-{FEEDER}/image.jpg"
+    media["thumbnailUrl"] = f"https://cdn.example.invalid/image.jpg?Signature={FEEDER}"
+    node = FeedNode({"id": "n1", "__typename": "FeedItemNewPostcard", "media": media})
     assert _find_media(FEEDER, [node]) == []

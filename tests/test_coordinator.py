@@ -1,204 +1,198 @@
-"""Tests for custom_components.birdbuddy.coordinator."""
+"""Account polling preserves telemetry, startup arrivals and current visitor data."""
 
-from __future__ import annotations
-
-import asyncio
 from datetime import timedelta
-from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, patch
 
-from birdbuddy.exceptions import GraphqlError
-from birdbuddy.feed import FeedNodeType
-from homeassistant.core import HomeAssistant
-from tests.ha_compat import common as ha_test_common
+from birdbuddy.exceptions import AuthenticationFailedError, NoResponseError
+from homeassistant.core import CoreState
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
+import pytest
 
-from custom_components.birdbuddy.const import (
-    CONF_POLLING_INTERVAL,
-    DEFAULT_POLLING_INTERVAL,
-    DOMAIN,
-    EVENT_NEW_POSTCARD_SIGHTING,
+from custom_components.birdbuddy.const import CONF_POLLING_INTERVAL, EVENT_NEW_POSTCARD
+from tests.coordinator_helpers import (
+    accounts_factory as accounts_factory,
+    card,
+    hass_config_dir as hass_config_dir,
+    hass_storage as hass_storage,
+    isolated_storage_directory as isolated_storage_directory,
 )
-from custom_components.birdbuddy.coordinator import BirdBuddyDataUpdateCoordinator
 
 
-def _config_entry(options: dict | None = None) -> Any:
-    return ha_test_common.MockConfigEntry(
-        domain=DOMAIN,
-        data={"email": "test@email.com", "password": "pw"},
-        options=options or {},
+@pytest.mark.parametrize("minutes", [None, 1, 3, 20])
+async def test_poll_interval_and_config_entry_are_preserved(accounts_factory, minutes):
+    account = accounts_factory(
+        options={} if minutes is None else {CONF_POLLING_INTERVAL: minutes}
     )
+    assert account.coordinator.update_interval == timedelta(minutes=minutes or 10)
+    assert account.coordinator.config_entry is account.entry
 
 
-async def test_coordinator_uses_configured_polling_interval(
-    hass: HomeAssistant,
-) -> None:
-    """A configured interval becomes the coordinator's update_interval."""
-    entry = _config_entry(options={CONF_POLLING_INTERVAL: 3})
-    entry.add_to_hass(hass)
-    coordinator = BirdBuddyDataUpdateCoordinator(hass, MagicMock(), entry)
-    assert coordinator.update_interval == timedelta(minutes=3)
+async def test_startup_baseline_does_not_lose_arrivals(hass, accounts_factory):
+    hass.set_state(CoreState.starting)
+    history = [card(f"old-{i}") for i in range(20)]
+    account = accounts_factory(snapshot=history)
+    events = []
+    hass.bus.async_listen(EVENT_NEW_POSTCARD, events.append)
+    await account.poll()
+    assert account.coordinator.intake.is_bootstrapped
+    account.snapshot.insert(0, card("during-startup"))
+    await account.poll()
+    await hass.async_block_till_done()
+    assert not events
+    assert account.coordinator.intake.pending_count == 1
+    hass.set_state(CoreState.running)
+    await account.poll()
+    await hass.async_block_till_done()
+    assert [event.data["postcard_id"] for event in events] == ["during-startup"]
+    account.assert_no_mutations()
 
 
-async def test_coordinator_defaults_polling_interval(hass: HomeAssistant) -> None:
-    """With no option set, the historical default interval is used."""
-    entry = _config_entry()
-    entry.add_to_hass(hass)
-    coordinator = BirdBuddyDataUpdateCoordinator(hass, MagicMock(), entry)
-    assert coordinator.update_interval == timedelta(minutes=DEFAULT_POLLING_INTERVAL)
+async def test_empty_bootstrap_keeps_more_than_twenty_arrivals_live(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = []
+    hass.bus.async_listen(EVENT_NEW_POSTCARD, events.append)
+    await account.poll()
+    account.snapshot = [card(f"new-{i}") for i in range(25)]
+    await account.poll()
+    await hass.async_block_till_done()
+    assert len(events) == 25
+    assert all(event.data["source"] == "live" for event in events)
+    assert account.scan_arguments == [100]
+    account.assert_no_mutations()
 
 
-def _make_coordinator(*, listener_count: int = 1) -> BirdBuddyDataUpdateCoordinator:
-    """Build a coordinator without engaging DataUpdateCoordinator/HA init.
-
-    We only exercise `_process_feed` here, which touches `self.client`,
-    `self.hass.bus`, and the module-level LOGGER. Seed those and skip the
-    parent __init__.
-    """
-    coordinator = object.__new__(BirdBuddyDataUpdateCoordinator)
-    coordinator.client = MagicMock()
-    coordinator.hass = MagicMock()
-    coordinator.hass.bus.async_listeners.return_value = {
-        EVENT_NEW_POSTCARD_SIGHTING: listener_count,
-    }
-    return coordinator
-
-
-def _postcard(node_id: str) -> MagicMock:
-    p = MagicMock()
-    p.node_id = node_id
-    p.node_type = FeedNodeType.NewPostcard
-    p.data = {"id": node_id, "__typename": "FeedItemNewPostcard"}
-    return p
-
-
-def _sighting(feeder_id: str = "f1") -> MagicMock:
-    s = MagicMock()
-    s.data = {
-        "feeder": {"id": feeder_id, "name": "Backyard"},
-        "sightingReport": {"reportToken": "", "sightings": []},
-    }
-    return s
-
-
-def test_failing_postcard_doesnt_kill_subsequent_postcards() -> None:
-    """Regression for upstream #98.
-
-    Bird Buddy now requires manual identification in the BB app before a
-    sighting can be created from a postcard; until then,
-    `sightingCreateFromPostcard` returns INTERNAL_SERVER_ERROR. Before this
-    fix, that error propagated up to `_async_update_data` and was converted
-    to UpdateFailed, losing every other postcard in the same cycle (and
-    permanently — `refresh_feed` had already advanced its cursor past them).
-
-    After the fix, the failing postcard is logged and skipped; remaining
-    postcards in the same cycle are still processed; no exception escapes.
-    """
-    coordinator = _make_coordinator()
-
-    bad = _postcard("bad-postcard")
-    good = _postcard("good-postcard")
-
-    async def fake_sighting_from_postcard(*, postcard):
-        if postcard.node_id == "bad-postcard":
-            raise GraphqlError(
-                {
-                    "message": "Internal server error.",
-                    "path": ["sightingCreateFromPostcard"],
-                    "extensions": {"code": "INTERNAL_SERVER_ERROR"},
-                }
-            )
-        return _sighting()
-
-    coordinator.client.sighting_from_postcard = AsyncMock(
-        side_effect=fake_sighting_from_postcard
+async def test_same_id_species_and_url_changes_refresh_without_an_event(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory(snapshot=[card()])
+    events = []
+    hass.bus.async_listen(EVENT_NEW_POSTCARD, events.append)
+    await account.poll()
+    account.snapshot[0]["medias"][0]["contentUrl"] = (
+        "https://example.invalid/current.jpg"
     )
-
-    # Must not raise.
-    asyncio.run(coordinator._process_feed([bad, good]))
-
-    # The bad postcard's error was swallowed; the good one fired an event.
-    assert coordinator.client.sighting_from_postcard.await_count == 2
-    fires = cast(MagicMock, coordinator.hass.bus.fire).call_args_list
-    assert len(fires) == 1, f"expected 1 event fired, got {len(fires)}: {fires}"
-    fired_data = fires[0].kwargs["event_data"]
-    assert fired_data["postcard"]["id"] == "good-postcard"
-
-
-def test_failing_postcard_doesnt_raise() -> None:
-    """If every postcard in a cycle fails, _process_feed still must not raise
-    (so the coordinator doesn't enter UpdateFailed and disable the integration
-    for normal feeder/state updates that have nothing to do with postcards)."""
-    coordinator = _make_coordinator()
-
-    coordinator.client.sighting_from_postcard = AsyncMock(
-        side_effect=GraphqlError(
-            {
-                "message": "Internal server error.",
-                "path": ["sightingCreateFromPostcard"],
-                "extensions": {"code": "INTERNAL_SERVER_ERROR"},
-            }
+    account.snapshot[0]["sightingReportPreview"]["sightings"][0]["species"]["name"] = (
+        "Updated bird"
+    )
+    await account.poll()
+    await hass.async_block_till_done()
+    visitors = account.coordinator.visitors["feeder-a"]
+    assert visitors.latest_media.content_url == "https://example.invalid/current.jpg"
+    assert visitors.latest_species.name == "Updated bird"
+    assert not events
+    assert (
+        sum(
+            call.kwargs.get("first") == 100
+            for call in account.client.feed.await_args_list
         )
+        == 2
+    )
+    account.assert_no_mutations()
+
+
+async def test_recovered_pending_payload_cannot_overwrite_fresh_visitor_state(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.starting)
+    account = accounts_factory()
+    await account.poll()
+    account.snapshot = [card()]
+    await account.poll()
+    assert account.coordinator.intake.pending_count == 1
+    account.snapshot[0]["medias"][0]["contentUrl"] = "https://example.invalid/new.jpg"
+    hass.set_state(CoreState.running)
+    await account.poll()
+    assert (
+        account.coordinator.visitors["feeder-a"].latest_media.content_url
+        == "https://example.invalid/new.jpg"
     )
 
-    asyncio.run(coordinator._process_feed([_postcard("p1"), _postcard("p2")]))
 
-    assert coordinator.client.sighting_from_postcard.await_count == 2
-    cast(MagicMock, coordinator.hass.bus.fire).assert_not_called()
-
-
-def _make_poll_coordinator() -> BirdBuddyDataUpdateCoordinator:
-    """A coordinator wired just enough to run `_async_update_data` once,
-    skipping the feed-processing branch (first_update=True)."""
-    coordinator = object.__new__(BirdBuddyDataUpdateCoordinator)
-    coordinator.client = MagicMock()
-    coordinator.client.refresh = AsyncMock(return_value=True)
-    coordinator.client.feeders = {"f1": {"id": "f1", "name": "Backyard"}}
-    coordinator.hass = MagicMock()
-    coordinator.feeders = {}
-    coordinator.visitors = {}
-    coordinator.first_update = True  # skip _process_feed for this test
-    return coordinator
-
-
-def test_poll_refreshes_recent_visitors() -> None:
-    """Regression for #7: the recent-visitor surface must refresh on every
-    poll. For feeders without auto-ID the event-driven path never fires (their
-    postcards can't convert to sightings), so polling is the only way mystery
-    visitors surface after startup."""
-    coordinator = _make_poll_coordinator()
-    visitors = MagicMock()
-    visitors.async_update = AsyncMock()
-    coordinator.visitors = {"f1": visitors}
-
-    asyncio.run(coordinator._async_update_data())
-
-    visitors.async_update.assert_awaited_once()
+async def test_restart_restores_checkpoint_and_pending_arrivals(hass, accounts_factory):
+    hass.set_state(CoreState.starting)
+    original = accounts_factory(snapshot=[card("history")])
+    await original.poll()
+    original.snapshot.insert(0, card("pending"))
+    await original.poll()
+    checkpoint = original.client.export_feed_checkpoint()
+    restarted = accounts_factory(entry=original.entry, snapshot=original.snapshot)
+    events = []
+    hass.bus.async_listen(EVENT_NEW_POSTCARD, events.append)
+    hass.set_state(CoreState.running)
+    await restarted.poll()
+    await hass.async_block_till_done()
+    assert restarted.client.export_feed_checkpoint() == checkpoint
+    assert [event.data["postcard_id"] for event in events] == ["pending"]
+    assert restarted.coordinator.intake.pending_count == 0
 
 
-def test_poll_visitor_refresh_failure_doesnt_fail_update() -> None:
-    """A recent-visitor refresh error must not fail the whole coordinator
-    update — feeder battery/signal/state have nothing to do with the feed."""
-    coordinator = _make_poll_coordinator()
-    visitors = MagicMock()
-    visitors.async_update = AsyncMock(side_effect=RuntimeError("feed boom"))
-    coordinator.visitors = {"f1": visitors}
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (AuthenticationFailedError(), ConfigEntryAuthFailed),
+        (NoResponseError(), UpdateFailed),
+    ],
+)
+async def test_telemetry_auth_and_transport_failures_are_distinct(
+    accounts_factory, error, expected
+):
+    account = accounts_factory()
+    account.client.refresh.side_effect = error
+    with pytest.raises(expected):
+        await account.poll()
+    assert account.coordinator.last_update_timestamp is None
 
-    result = asyncio.run(coordinator._async_update_data())
 
-    assert result is coordinator.client
-    visitors.async_update.assert_awaited_once()
+async def test_feed_failure_preserves_telemetry_and_checkpoint(accounts_factory):
+    account = accounts_factory(snapshot=[card()])
+    await account.poll()
+    checkpoint = account.client.export_feed_checkpoint()
+    account.intake_error = NoResponseError()
+    assert await account.poll() is account.client
+    assert account.coordinator.last_update_timestamp is not None
+    assert account.coordinator.feed_error_type == "NoResponseError"
+    assert account.client.export_feed_checkpoint() == checkpoint
+    account.assert_no_mutations()
 
 
-def test_no_listeners_skips_sighting_conversion() -> None:
-    """If no automation is listening for the event, we shouldn't call
-    sightingCreateFromPostcard at all (saves an API call AND avoids the #98
-    error entirely if the user isn't using auto-collection). Pre-existing
-    behavior we want to verify is preserved."""
-    coordinator = _make_coordinator(listener_count=0)
-    cast(MagicMock, coordinator.hass.bus.async_listeners).return_value = {}
-    coordinator.client.sighting_from_postcard = AsyncMock(return_value=_sighting())
+@pytest.mark.parametrize("stage", ["intake", "display", "dispatch"])
+async def test_secondary_auth_failures_remain_reauthentication_errors(
+    hass, accounts_factory, stage
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    await account.poll()
+    if stage == "intake":
+        account.intake_error = AuthenticationFailedError()
+    elif stage == "display":
+        account.display_error = AuthenticationFailedError()
+    else:
+        account.snapshot = [card()]
+    with patch.object(
+        account.coordinator,
+        "_publish_intake_record",
+        new=AsyncMock(side_effect=AuthenticationFailedError()),
+    ):
+        with pytest.raises(ConfigEntryAuthFailed):
+            await account.poll()
 
-    asyncio.run(coordinator._process_feed([_postcard("p1")]))
 
-    coordinator.client.sighting_from_postcard.assert_not_called()
-    cast(MagicMock, coordinator.hass.bus.fire).assert_not_called()
+async def test_one_unrepresentable_event_does_not_block_the_next(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    await account.poll()
+    account.snapshot = [card("x" * 31_000), card("good")]
+    events = []
+    hass.bus.async_listen(EVENT_NEW_POSTCARD, events.append)
+    await account.poll()
+    await hass.async_block_till_done()
+    assert [event.data["postcard_id"] for event in events] == ["good"]
+    assert account.coordinator.intake.pending_count == 1
+    account.assert_no_mutations()

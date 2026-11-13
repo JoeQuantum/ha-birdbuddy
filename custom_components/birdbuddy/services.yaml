@@ -1,109 +1,202 @@
 collect_postcard:
-  name: Collect a Postcard
-  description: Finish a Postcard by adding it to your Bird Buddy Collections.
-  # target:
-  #   device:
-  #     # Technically we don't care about Feeder, just account...
-  #     # But associating a device lets us look up the coordinator and client
-  #     integration: birdbuddy
+  name: Collect a postcard
+  description: Collect with Bird Buddy’s current server selection. Review the policy
+    before enabling automatic collection. Unknown outcomes are not automatically retried.
   fields:
+    postcard_id:
+      name: Postcard ID
+      description: The postcard_id from a Bird Buddy event.
+      required: true
+      selector:
+        text: null
+    selection_policy:
+      name: Collection policy
+      description: Explicitly accept the server selection. This does not preserve
+        legacy recognized-only, mystery or confidence rules.
+      required: true
+      selector:
+        select:
+          options:
+          - server
+    identify:
+      name: Identify before collecting
+      description: Explicitly run inference first. Default is false.
+      selector:
+        boolean: null
+    share:
+      name: Request community sharing
+      description: Default is false. The response reports sharing intent separately
+        from confirmed collection.
+      selector:
+        boolean: null
     config_entry_id:
       name: Bird Buddy account
-      description: Select the configured account. Required when the feeder is shared across multiple configured accounts or cannot be attributed uniquely.
-      required: false
+      description: Select the configured account. Required when account routing is
+        ambiguous.
       selector:
         config_entry:
           integration: birdbuddy
     account_id:
-      name: Bird Buddy account ID
-      description: Vendor account UUID, as an alternative to selecting a config entry. All supplied account, device and feeder targets must agree.
-      required: false
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
       selector:
-        text:
+        text: null
     device_id:
       name: Feeder device
-      description: Optional HA device target. Must match the postcard feeder and selected account.
-      required: false
+      description: Optional device target; the postcard must belong to this feeder.
       selector:
         device:
           integration: birdbuddy
-    strategy:
-      name: Strategy for collecting the postcard
-      description: "Strategy can be one of
-        * `recognized` - Collect the postcard only if it was a recognized bird. Unrecognized birds will
-          be ignored.
-        * `best_guess` - Collect `recognized` birds, as well as choosing the highest-confidence species
-          that Bird Buddy suggested. Optionally set the confidence threshold (defaults to 10).
-        * `mystery` - Collect as `best_guess`, and anything remaining will be finished as a \"Mystery
-          Visitor\".
-        "
-      required: false
-      default: "recognized"
-      example: "recognized"
+    feeder_id:
+      name: Feeder ID
+      description: Optional vendor feeder ID; all targets must agree.
       selector:
-        select:
-          options:
-            - "recognized"
-            - "best_guess"
-            - "mystery"
-    best_guess_confidence:
-      name: Best-guess confidence threshold
-      description: Confidence threshold for auto-accepting Bird Buddy's recommendations.
+        text: null
+get_postcard_details:
+  name: Get postcard details
+  description: Read every selected photo, video and species, including event overflow
+    data. Returns a response without running inference or collecting.
+  fields:
+    postcard_id:
+      name: Postcard ID
+      description: The postcard_id from a Bird Buddy event.
+      required: true
+      selector:
+        text: null
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is
+        ambiguous.
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
+      selector:
+        text: null
+    device_id:
+      name: Feeder device
+      description: Optional device target; the postcard must belong to this feeder.
+      selector:
+        device:
+          integration: birdbuddy
+    feeder_id:
+      name: Feeder ID
+      description: Optional vendor feeder ID; all targets must agree.
+      selector:
+        text: null
+identify_postcard:
+  name: Identify a postcard
+  description: Explicitly run Bird Buddy inference. This changes analysis state and
+    does not collect or share.
+  fields:
+    postcard_id:
+      name: Postcard ID
+      description: The postcard_id from a Bird Buddy event.
+      required: true
+      selector:
+        text: null
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is
+        ambiguous.
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
+      selector:
+        text: null
+    device_id:
+      name: Feeder device
+      description: Optional device target; the postcard must belong to this feeder.
+      selector:
+        device:
+          integration: birdbuddy
+    feeder_id:
+      name: Feeder ID
+      description: Optional vendor feeder ID; all targets must agree.
+      selector:
+        text: null
+backfill:
+  name: Read historical visits
+  description: Read bounded history and emit separate birdbuddy_postcard_backfill
+    events. It does not identify or collect and does not emit the automatic-collection
+    trigger event.
+  fields:
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is
+        ambiguous.
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
+      selector:
+        text: null
+    max_pages:
+      name: Maximum pages
+      description: Stop with an error if the selected history cannot be fully read
+        within this budget.
       default: 10
-      example: 10
       selector:
         number:
-          min: 0
+          min: 1
           max: 100
-          step: 1
-          unit_of_measurement: "%"
-    share_media:
-      name: Share postcard media
-      description: Whether each media image should be shared with the community.
-      default: false
-      example: false
+          mode: box
+retry_feed_items:
+  name: Retry failed event delivery
+  description: Requeue failed or dead-letter event delivery. This does not retry identification
+    or collection. Automations listening for those events may act again.
+  fields:
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is
+        ambiguous.
       selector:
-        boolean:
-    postcard:
-      name: Postcard data
-      description: Data from the FeedNode representing the postcard.
-        This corresponds to the `.postcard` data received in the Event.
-        The only field that matters is `.id`
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
+      selector:
+        text: null
+    postcard_id:
+      name: Postcard ID
+      description: The postcard_id from a Bird Buddy event.
+      required: false
+      selector:
+        text: null
+acknowledge_postcard_retry:
+  name: Allow retry of an uncertain action
+  description: After checking the Bird Buddy app, acknowledge an unknown action outcome.
+    This does not perform an action. A later separate identification or collection
+    call is required.
+  fields:
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the configured account. Required when account routing is
+        ambiguous.
+      selector:
+        config_entry:
+          integration: birdbuddy
+    account_id:
+      name: Bird Buddy account UUID
+      description: Alternative account selector. All supplied targets must agree.
+      selector:
+        text: null
+    postcard_id:
+      name: Postcard ID
+      description: The postcard_id from a Bird Buddy event.
       required: true
-      example:
-        - '{"id": "$postcardFeedItemId"}'
-        - "{{ trigger.event.data.postcard }}"
       selector:
-        object:
-      # TODO: support nested fields
-      # fields:
-      #   id:
-      #     name: The postcard (feed item) id
-      #     required: true
-    sighting:
-      name: Sighting data
-      description: Data from the PostcardSighting object after converting the postcard to a sighting.
-        This corresponds to the `.sighting` data received in the Event. This should generally just be
-        passed through from an automation.
+        text: null
+    confirm:
+      name: I checked the action outcome
       required: true
-      example:
-        - '{"feeder":{"id":"$feederId"}, "sightingReport":{"sightings":[]}}'
-        - "{{ trigger.event.data.sighting }}"
       selector:
-        object:
-      # TODO: support nested fields
-      # fields:
-      #   feeder:
-      #     # TODO: not really required, but it is used in the string representation of the Sighting object.
-      #     required: true
-      #   sightingReport:
-      #     name: SightingReport data
-      #     required: true
-      #     fields:
-      #       sightings:
-      #         name: List of sightings in this report
-      #         required: true
-      #         fields:
-      #           species:
-      #             required: false
-
+        boolean: null

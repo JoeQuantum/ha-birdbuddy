@@ -213,7 +213,7 @@ async def test_expired_bytes_refresh_only_bound_account(hass, monkeypatch):
     session.get.side_effect = [Reply(b"old"), Reply(b"fresh")]
 
     async def refresh(**_kwargs):
-        visitors.latest_media = media(url=NEW_URL)
+        show(image, visitors, media(url=NEW_URL))
 
     visitors.async_update.side_effect = refresh
     with patch.object(images, "async_get_clientsession", return_value=session):
@@ -256,7 +256,7 @@ async def test_forbidden_url_refreshes_and_retries_rotated_url(hass, caplog):
     session.get.side_effect = [Reply(status=403), Reply(b"new")]
 
     async def refresh(**_kwargs):
-        visitors.latest_media = media(url=NEW_URL)
+        show(image, visitors, media(url=NEW_URL))
 
     visitors.async_update.side_effect = refresh
     caplog.set_level("DEBUG", logger="custom_components.birdbuddy")
@@ -438,3 +438,16 @@ async def test_refresh_cancellation_propagates(hass):
         await request
     assert image._cached_image is None
     assert not image.available
+
+
+async def test_new_visit_identity_invalidates_reused_media_and_url(hass):
+    image, _, _ = entity(hass)
+    item = media()
+    image._update_url(item, STAMP, "visit-a")
+    session = MagicMock()
+    session.get.side_effect = [Reply(b"first"), Reply(b"second")]
+    with patch.object(images, "async_get_clientsession", return_value=session):
+        assert await image.async_image() == b"first"
+        image._update_url(item, STAMP, "visit-b")
+        assert await image.async_image() == b"second"
+    assert session.get.call_count == 2

@@ -15,7 +15,9 @@ Bird Buddy responses; they do not establish physical hardware compatibility.
 
 `tests/ha_targets.json` records these targets. Tests check the requirements,
 CI matrix, HACS minimum and development Python version against that table.
-A newer test lane does not automatically raise the supported minimum.
+A newer test lane does not automatically raise the supported minimum. The suite
+also checks the installed client's `direct_url.json` against the exact immutable
+manifest pin; editable/source overrides do not count as release validation.
 
 ## Local checks
 
@@ -29,8 +31,8 @@ make check
 `make check` runs correctness-focused Ruff rules, a formatting check, Pyright
 and pytest. `make format` formats source and tests explicitly. Pyright uses
 declared third-party types instead of inferring types from untyped dependency
-implementation code; the older Bird Buddy client contains invalid `any`
-annotations. The HA entity multiple-inheritance override exemption matches
+implementation code. The companion client ships a `py.typed` marker and its
+annotations are checked separately. The HA entity multiple-inheritance override exemption matches
 the upstream integration. Optional values and test doubles still require
 explicit checks or type annotations.
 

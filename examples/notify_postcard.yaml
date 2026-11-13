@@ -1,0 +1,56 @@
+alias: Bird Buddy visitor notification
+mode: queued
+max: 20
+max_exceeded: warning
+trigger:
+  - platform: event
+    event_type: birdbuddy_new_postcard
+    event_data:
+      schema_version: 1
+      source: live
+      config_entry_id: YOUR_BIRD_BUDDY_CONFIG_ENTRY
+      feeder_id: YOUR_BIRD_BUDDY_FEEDER_ID
+condition:
+  - condition: template
+    value_template: >-
+      {{ trigger.event.data.event_id is string
+         and trigger.event.data.event_id | length > 0
+         and trigger.event.data.postcard_id is string
+         and trigger.event.data.postcard_id | length > 0 }}
+action:
+  - service: birdbuddy.get_postcard_details
+    data:
+      config_entry_id: "{{ trigger.event.data.config_entry_id }}"
+      account_id: "{{ trigger.event.data.account_id }}"
+      feeder_id: "{{ trigger.event.data.feeder_id }}"
+      postcard_id: "{{ trigger.event.data.postcard_id }}"
+    response_variable: postcard_details
+  - variables:
+      visitor_name: >-
+        {{ postcard_details.species | selectattr('name', 'string')
+           | map(attribute='name') | join(', ') or 'Unidentified visitor' }}
+      video_count: >-
+        {{ postcard_details.medias | selectattr('kind', 'eq', 'MediaVideo')
+           | list | count }}
+      image_count: >-
+        {{ postcard_details.medias | selectattr('kind', 'eq', 'MediaImage')
+           | list | count }}
+  - choose:
+      - conditions: >-
+          {{ postcard_details.preview_url is string
+             and postcard_details.preview_url | length > 0 }}
+        sequence:
+          - service: notify.mobile_app_your_phone
+            data:
+              title: "{{ visitor_name }}"
+              message: "{{ image_count }} photo(s), {{ video_count }} video(s)"
+              data:
+                tag: "{{ trigger.event.data.event_id }}"
+                image: "{{ postcard_details.preview_url }}"
+    default:
+      - service: notify.mobile_app_your_phone
+        data:
+          title: "{{ visitor_name }}"
+          message: "{{ image_count }} photo(s), {{ video_count }} video(s)"
+          data:
+            tag: "{{ trigger.event.data.event_id }}"

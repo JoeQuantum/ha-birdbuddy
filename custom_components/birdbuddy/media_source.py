@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 from birdbuddy.media import Collection, Media, is_media_expired
+from birdbuddy.exceptions import AuthenticationFailedError
 
 from homeassistant.components.media_player.const import MediaClass, MediaType
 from homeassistant.components.media_source.error import MediaSourceError, Unresolvable
@@ -66,6 +67,13 @@ class BirdBuddyMediaSource(MediaSource):
             or coordinator is None
         ):
             raise MediaSourceError("This Bird Buddy account is not loaded")
+        try:
+            coordinator.verify_account_identity()
+        except AuthenticationFailedError:
+            entry.async_start_reauth(self.hass)
+            raise MediaSourceError(
+                "This Bird Buddy account needs reauthentication"
+            ) from None
         return entry, coordinator
 
     def _check_loaded(
@@ -81,6 +89,7 @@ class BirdBuddyMediaSource(MediaSource):
         config_id, collection_id, media_id = self._parse_identifier(item.identifier)
         if not config_id or not collection_id or not media_id:
             raise Unresolvable("Incomplete Bird Buddy media identifier")
+        config = None
         try:
             config, coordinator = self._get_account(config_id)
             for _ in range(2):
@@ -91,6 +100,12 @@ class BirdBuddyMediaSource(MediaSource):
                     break
                 if url := _playback_url(media):
                     return PlayMedia(url, _mime_type(media))
+        except AuthenticationFailedError:
+            if config is not None:
+                config.async_start_reauth(self.hass)
+            raise Unresolvable(
+                "This Bird Buddy account needs reauthentication"
+            ) from None
         except Exception:  # SDK and transport errors must not expose signed URLs
             raise Unresolvable("Unable to resolve Bird Buddy media") from None
         raise Unresolvable("Bird Buddy media is missing or expired")
@@ -102,6 +117,7 @@ class BirdBuddyMediaSource(MediaSource):
         config_id, collection_id, _ = self._parse_identifier(item.identifier)
         if not config_id:
             raise MediaSourceError("Incomplete Bird Buddy account identifier")
+        config = None
         try:
             config, coordinator = self._get_account(config_id)
             collections = await coordinator.client.refresh_collections()
@@ -119,6 +135,12 @@ class BirdBuddyMediaSource(MediaSource):
                 for value in collections.values()
             ]
             return base
+        except AuthenticationFailedError:
+            if config is not None:
+                config.async_start_reauth(self.hass)
+            raise MediaSourceError(
+                "This Bird Buddy account needs reauthentication"
+            ) from None
         except MediaSourceError:
             raise
         except Exception:  # no raw backend payload or private URL in HA errors
@@ -188,7 +210,7 @@ class BirdBuddyMediaSource(MediaSource):
                 media_class=_media_class(media),
                 media_content_type=_mime_type(media),
                 title=_best_timedelta_title(_media_timestamp(media), dt_util.utcnow()),
-                can_play=True,
+                can_play=media.get("__typename") in {"MediaImage", "MediaVideo"},
                 can_expand=False,
                 thumbnail=_usable_url(media.get("thumbnailUrl")),
             )
@@ -222,6 +244,8 @@ def _usable_url(value: object) -> str | None:
 
 
 def _playback_url(media: Media) -> str | None:
+    if media.get("__typename") not in {"MediaImage", "MediaVideo"}:
+        return None
     if url := _usable_url(media.get("contentUrl")):
         return url
     if _media_class(media) is MediaClass.IMAGE:
@@ -232,11 +256,17 @@ def _playback_url(media: Media) -> str | None:
 def _media_class(media: Media) -> MediaClass:
     if media.get("__typename") == "MediaVideo":
         return MediaClass.VIDEO
-    return MediaClass.IMAGE
+    if media.get("__typename") == "MediaImage":
+        return MediaClass.IMAGE
+    return MediaClass.URL
 
 
 def _mime_type(media: Media) -> str:
-    return "video/mp4" if _media_class(media) is MediaClass.VIDEO else "image/jpeg"
+    if _media_class(media) is MediaClass.VIDEO:
+        return "video/mp4"
+    if _media_class(media) is MediaClass.IMAGE:
+        return "image/jpeg"
+    return "application/octet-stream"
 
 
 def _media_timestamp(media: Media) -> datetime | None:

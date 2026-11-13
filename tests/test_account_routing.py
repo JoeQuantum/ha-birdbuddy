@@ -26,7 +26,9 @@ def _account(hass, account_id, feeders, *, loaded=True):
     coordinator = SimpleNamespace(
         feeders={fid: {} for fid in feeders},
         client=SimpleNamespace(user=BirdBuddyUser({"id": account_id})),
-        handle_collect_postcard=AsyncMock(return_value=True),
+        handle_collect_postcard=AsyncMock(
+            return_value={"collected_postcard_id": "collected-a"}
+        ),
     )
     if loaded:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
@@ -38,11 +40,9 @@ async def _collect(hass, feeder_id="shared", **targets):
         DOMAIN,
         "collect_postcard",
         {
-            "postcard": {"id": "postcard-a"},
-            "sighting": {
-                "feeder": {"id": feeder_id, "name": "Fixture feeder"},
-                "sightingReport": {},
-            },
+            "postcard_id": "postcard-a",
+            "selection_policy": "server",
+            "feeder_id": feeder_id,
             **targets,
         },
         blocking=True,

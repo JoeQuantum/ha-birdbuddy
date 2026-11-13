@@ -21,6 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, LOGGER, RECENT_VISITOR_COUNT
 from .coordinator import BirdBuddyDataUpdateCoordinator
+from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
 from .entity import BirdBuddyMixin
 from .visitors import RecentVisitors
@@ -30,6 +31,7 @@ REFRESH_TIMEOUT = 15
 RETRY_SECONDS = 30
 MAX_RETRY_SECONDS = 300
 MAX_CACHE_SECONDS = 300
+_MISSING_TIMESTAMP = object()
 
 
 @dataclass
@@ -41,7 +43,9 @@ class _RefreshState:
     failures: int = 0
 
 
-_REFRESH_STATES: WeakKeyDictionary[RecentVisitors, _RefreshState] = WeakKeyDictionary()
+_REFRESH_STATES: WeakKeyDictionary[RecentVisitors, dict[str | None, _RefreshState]] = (
+    WeakKeyDictionary()
+)
 
 
 def _value(media: object, name: str) -> Any:
@@ -95,6 +99,8 @@ def _image_url(media: object) -> tuple[str | None, bool]:
     """Choose a usable still image, falling back from content to thumbnail."""
     video = _value(media, "is_video") is True
     if isinstance(media, Mapping):
+        if media.get("__typename") not in {"MediaImage", "MediaVideo"}:
+            return None, False
         video = video or media.get("__typename") == "MediaVideo"
     candidates = (
         (_value(media, "thumbnail_url"),)
@@ -125,28 +131,33 @@ async def async_setup_entry(
 ) -> None:
     """Set up the latest image and optional carousel image slots."""
     coordinator: BirdBuddyDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    feeders = coordinator.feeders.values()
-    async_add_entities(
-        BirdBuddyRecentVisitorImageEntity(hass, feeder, coordinator)
-        for feeder in feeders
-    )
-    async_add_entities(
-        BirdBuddyIndexedRecentVisitorImageEntity(hass, feeder, coordinator, index=index)
-        for feeder in feeders
-        for index in range(2, RECENT_VISITOR_COUNT + 1)
+    async_register_feeder_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        [
+            lambda feeder: BirdBuddyRecentVisitorImageEntity(hass, feeder, coordinator),
+            *[
+                lambda feeder, index=index: BirdBuddyIndexedRecentVisitorImageEntity(
+                    hass, feeder, coordinator, index=index
+                )
+                for index in range(2, RECENT_VISITOR_COUNT + 1)
+            ],
+        ],
     )
 
 
 class _BirdBuddyVisitorImage(BirdBuddyMixin, ImageEntity):
     """Invalidate bytes and refresh only the existing read-only visitor surface.
 
-    BB-15/BB-08 will replace visitor normalization. Until then, the refresh hook
-    deliberately calls RecentVisitors.async_update, never the coordinator poll
-    or an identification/collection mutation. No last-known image is retained
+    The refresh hook calls RecentVisitors.async_update for the canonical visit,
+    never the coordinator poll or an identification/collection mutation.
+    No last-known image is retained
     after a slot clears, expires or fails to download.
     """
 
     _latest_media: Media | None = None
+    _visit_id: str | None = None
     _media_identity: object = None
     _generation = 0
     _image_lock: asyncio.Lock | None = None
@@ -195,9 +206,17 @@ class _BirdBuddyVisitorImage(BirdBuddyMixin, ImageEntity):
         self._attr_entity_picture = None
         self._media_identity = None
         self._latest_media = None
+        if not refresh:
+            self._visit_id = None
         self._needs_refresh = refresh
 
-    def _update_url(self, media: Media | None, captured_at: object = None) -> None:
+    def _update_url(
+        self,
+        media: Media | None,
+        captured_at: object = _MISSING_TIMESTAMP,
+        visit_id: str | None = None,
+    ) -> None:
+        self._visit_id = visit_id
         if media is None:
             self._clear_image()
             return
@@ -206,14 +225,14 @@ class _BirdBuddyVisitorImage(BirdBuddyMixin, ImageEntity):
             self._clear_image(refresh=expired)
             return
         raw_time = captured_at
-        if raw_time is None:
+        if raw_time is _MISSING_TIMESTAMP:
             raw_time = (
                 media.get("createdAt")
                 if isinstance(media, Mapping)
                 else _value(media, "created_at")
             )
         timestamp = _timestamp(raw_time)
-        identity = (_value(media, "id") or id(media), timestamp)
+        identity = (visit_id, _value(media, "id") or id(media), timestamp)
         if identity != self._media_identity or url != self._attr_image_url:
             self._generation += 1
             self._cached_image = None
@@ -256,15 +275,22 @@ class _BirdBuddyVisitorImage(BirdBuddyMixin, ImageEntity):
         if visitors is None:
             self._clear_image()
             return
-        state = _REFRESH_STATES.setdefault(visitors, _RefreshState())
+        states = _REFRESH_STATES.setdefault(visitors, {})
+        state = states.setdefault(self._visit_id, _RefreshState())
+        active_ids = {visit.visit_id for visit in visitors.recent}
+        for key in states.keys() - active_ids - {self._visit_id, None}:
+            del states[key]
         async with state.lock:
             if monotonic() >= state.next_attempt:
                 state.next_attempt = monotonic() + RETRY_SECONDS
                 try:
                     async with asyncio.timeout(REFRESH_TIMEOUT):
-                        await visitors.async_update(
-                            sole_feeder=len(self.coordinator.feeders) == 1
-                        )
+                        if self._visit_id:
+                            await visitors.async_update(visit_id=self._visit_id)
+                        else:
+                            await visitors.async_update(
+                                sole_feeder=len(self.coordinator.feeders) == 1
+                            )
                 except Exception as exc:  # cancellation deliberately propagates
                     state.failures += 1
                     state.next_attempt = monotonic() + min(
@@ -395,7 +421,11 @@ class BirdBuddyRecentVisitorImageEntity(_BirdBuddyVisitorImage):
         self._attr_unique_id = f"{self.feeder.id}-recent-image"
 
     def _update_from_visitors(self, visitors: RecentVisitors) -> None:
-        self._update_url(visitors.latest_media)
+        if recent := getattr(visitors, "recent", []):
+            visit = recent[0]
+            self._update_url(visit.media, visit.created_at, visit.visit_id)
+        else:
+            self._update_url(visitors.latest_media)
 
 
 class BirdBuddyIndexedRecentVisitorImageEntity(_BirdBuddyVisitorImage):
@@ -420,6 +450,6 @@ class BirdBuddyIndexedRecentVisitorImageEntity(_BirdBuddyVisitorImage):
         position = self._index - 1
         if position < len(visitors.recent):
             visit = visitors.recent[position]
-            self._update_url(visit.media, visit.created_at)
+            self._update_url(visit.media, visit.created_at, visit.visit_id)
         else:
             self._update_url(None)

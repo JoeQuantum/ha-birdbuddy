@@ -1,93 +1,96 @@
-"""Data Update coordinator for Bird Buddy."""
+"""Account telemetry, durable postcard intake and explicit user actions."""
 
 from __future__ import annotations
 
-from collections import deque
+import asyncio
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import asdict
 from datetime import timedelta
-from typing import Any
+from typing import Any, TypedDict
 
 from birdbuddy.client import BirdBuddy
-from birdbuddy.exceptions import AuthenticationFailedError, GraphqlError
-from birdbuddy.feed import FeedNode, FeedNodeType
+from birdbuddy.exceptions import AuthenticationFailedError
+from birdbuddy.feed import FeedNode
 from birdbuddy.feeder import Feeder
-from birdbuddy.media import Collection
-from birdbuddy.sightings import PostcardSighting, SightingFinishStrategy
+from birdbuddy.transport import HttpResponseError
+from birdbuddy.visits import Visit, normalize_visit
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, EventOrigin, HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
+from homeassistant.const import CONF_EMAIL, EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import (
+    CALLBACK_TYPE,
+    CoreState,
+    Event,
+    EventOrigin,
+    HomeAssistant,
 )
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    HomeAssistantError,
+    ServiceValidationError,
+)
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ACCOUNT_ID,
     CONF_POLLING_INTERVAL,
     DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     EVENT_NEW_FEED_ITEM,
-    EVENT_NEW_POSTCARD_SIGHTING,
+    EVENT_NEW_POSTCARD,
+    EVENT_POSTCARD_BACKFILL,
     LOGGER,
 )
 from .device import BirdBuddyDevice
-from .util import _media_list, slim_event_payload
-from .visitors import _FEED_WITH_MEDIAS_QUERY, RecentVisitors, VisitorCallback
+from .events import build_legacy_feed_item_event, build_postcard_event, postcard_details
+from .intakestore import DurableIntake, IntakeError, IntakeRecord, async_drain_task
+from .postcard_policy import PostcardCollectionRequest
+from .repairs import check_legacy_listeners
+from .visitors import RecentVisitors, VisitorCallback
 
-# Visitor-bearing feed node types that warrant an EVENT_NEW_FEED_ITEM. Unlike the
-# recent-visitor surface (which only keeps types that already carry media),
-# NewPostcard is included here: its image is fetched separately via the
-# postcard-media query so even unidentified visits emit an event with a picture.
-_NEW_FEED_ITEM_TYPES = (
-    FeedNodeType.NewPostcard,
-    FeedNodeType.CollectedPostcard,
-    FeedNodeType.SpeciesSighting,
-    FeedNodeType.SpeciesUnlocked,
-    FeedNodeType.MysteryVisitorNotRecognized,
-    FeedNodeType.MysteryVisitorResolved,
-)
+_VISITOR_KINDS = {
+    "FeedItemNewPostcard",
+    "FeedItemCollectedPostcard",
+    "FeedItemSpeciesSighting",
+    "FeedItemSpeciesUnlocked",
+    "FeedItemMysteryVisitorNotRecognized",
+    "FeedItemMysteryVisitorResolved",
+}
 
-# Cap on the in-memory set of already-emitted feed-item ids. Bounded so it can't
-# grow unboundedly; NOT persisted to the config entry (birdsense persists and
-# grows .storage without limit).
-_SEEN_FEED_ITEM_CAP = 500
+
+class _EventContext(TypedDict):
+    config_entry_id: str
+    account_id: str
+    event_id: str
+    source: str
 
 
 class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
-    """Class to coordinate fetching BirdBuddy data."""
+    """Keep reads independent of inference, collection and sharing."""
 
     config_entry: ConfigEntry
-    client: BirdBuddy
-    feeders: dict[str, BirdBuddyDevice]
-    visitors: dict[str, RecentVisitors]
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        client: BirdBuddy,
-        entry: ConfigEntry,
+        self, hass: HomeAssistant, client: BirdBuddy, entry: ConfigEntry
     ) -> None:
-        """Initialize the BirdBuddy data coordinator."""
         self.client = client
-        self.feeders = {}
-        self.visitors = {}
-        self.first_update = True
-        # UTC timestamp of the last successful poll; surfaced by the Last Sync
-        # sensor. None until the first success.
+        self.feeders: dict[str, BirdBuddyDevice] = {}
+        self.visitors: dict[str, RecentVisitors] = {}
+        self.account_id = ""
+        self.intake: DurableIntake | None = None
         self.last_update_timestamp = None
-        # In-memory dedup of feed-item ids already emitted as EVENT_NEW_FEED_ITEM.
-        # The set gives O(1) membership; the deque tracks recency so we can cap
-        # the set to the most recent _SEEN_FEED_ITEM_CAP ids. Deliberately not
-        # persisted — it only needs to suppress repeats within a running session,
-        # and on restart the first poll re-seeds without firing.
-        self._seen_feed_ids: set[str] = set()
-        self._seen_feed_order: deque[str] = deque(maxlen=_SEEN_FEED_ITEM_CAP)
-        # Whether the one-time seed pass has run. Until it has, the next poll
-        # marks the existing backlog as seen WITHOUT firing, so a restart never
-        # replays old items as new events.
-        self._feed_events_seeded: bool = False
-        # Poll cadence is user-configurable via the options flow; default keeps
-        # the historical 10-minute interval. A changed option reloads the entry
-        # (see __init__.py update listener), rebuilding the coordinator.
+        self.last_feed_success = None
+        self.feed_error_type: str | None = None
+        self._feed_work_lock = asyncio.Lock()
+        self._pending_intake_mode: str | None = None
+        self._startup_unsub: CALLBACK_TYPE | None = None
+        self._closing = False
+        self._active_work: dict[asyncio.Task[Any], int] = {}
+        self._shutdown_task: asyncio.Task[None] | None = None
+        if account_id := entry.data.get(CONF_ACCOUNT_ID):
+            self.client.bind_account(account_id)
         minutes = entry.options.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
         super().__init__(
             hass,
@@ -96,291 +99,477 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             config_entry=entry,
             update_interval=timedelta(minutes=minutes),
         )
+        if hass.state is not CoreState.running:
+            self._startup_unsub = hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, self._async_started
+            )
+
+    async def _async_started(self, event: Event) -> None:
+        """Deliver queued startup arrivals once automations can receive them."""
+        self._startup_unsub = None
+        if self._closing:
+            return
+        async with self.async_work():
+            check_legacy_listeners(self.hass)
+            await self.async_request_refresh()
+
+    @asynccontextmanager
+    async def async_work(self) -> AsyncIterator[None]:
+        """Own account work through unload, including nested calls in one task."""
+        if self._closing:
+            raise ServiceValidationError("This Bird Buddy account is unloading")
+        task = asyncio.current_task()
+        if task is None:
+            raise RuntimeError("Account work requires an asyncio task")
+        self._active_work[task] = self._active_work.get(task, 0) + 1
+        try:
+            yield
+        finally:
+            remaining = self._active_work[task] - 1
+            if remaining:
+                self._active_work[task] = remaining
+            else:
+                del self._active_work[task]
+
+    async def async_shutdown(self) -> None:
+        """Drain old account work before another owner can open the same Store."""
+        self._closing = True
+        if self._startup_unsub is not None:
+            self._startup_unsub()
+            self._startup_unsub = None
+        await super().async_shutdown()
+        if self._shutdown_task is None:
+            current = asyncio.current_task()
+            tasks = [task for task in self._active_work if task is not current]
+            self._shutdown_task = asyncio.create_task(
+                self._async_finish_shutdown(tasks)
+            )
+        await async_drain_task(self._shutdown_task)
+
+    async def _async_finish_shutdown(self, tasks: list[asyncio.Task[Any]]) -> None:
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        # Action cancellation can still journal an unknown outcome above. Close
+        # only once that cleanup has completed, then reject any late old writer.
+        if self.intake is not None:
+            await self.intake.async_close()
+
+    def _verify_identity(self) -> None:
+        """Verify account before restoring its cursor or emitting account data."""
+        user = self.client.user
+        account_id = user.get("id") if user is not None else None
+        if not isinstance(account_id, str) or not account_id:
+            raise UpdateFailed("Bird Buddy returned no account identity")
+        stored = self.config_entry.data.get(CONF_ACCOUNT_ID)
+        if stored and stored != account_id:
+            raise ConfigEntryAuthFailed(
+                "Credentials refer to a different Bird Buddy account"
+            )
+        if not stored:
+            email = user.get(CONF_EMAIL) if user is not None else None
+            if (
+                not isinstance(email, str)
+                or email.lower() != self.config_entry.data[CONF_EMAIL].lower()
+            ):
+                raise ConfigEntryAuthFailed(
+                    "Unable to verify the existing Bird Buddy account"
+                )
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=self.config_entry.data | {CONF_ACCOUNT_ID: account_id},
+            )
+        self.account_id = account_id
+        self.client.bind_account(account_id)
+
+    def verify_account_identity(self) -> None:
+        """Refuse reads/writes when authentication no longer matches this entry."""
+        try:
+            self._verify_identity()
+        except (ConfigEntryAuthFailed, UpdateFailed):
+            raise AuthenticationFailedError(
+                "Bird Buddy account identity could not be verified"
+            ) from None
+
+    def _reconcile_feeders(self) -> None:
+        for feeder_id, feeder in self.client.feeders.items():
+            if feeder_id in self.feeders:
+                self.feeders[feeder_id].clear()
+                self.feeders[feeder_id].update(feeder)
+            else:
+                self.feeders[feeder_id] = BirdBuddyDevice(feeder)
+            if feeder_id not in self.visitors:
+                self.visitors[feeder_id] = RecentVisitors(
+                    self.feeders[feeder_id], self.client, self.hass
+                )
+            else:
+                self.visitors[feeder_id].feeder = self.feeders[feeder_id]
+        for feeder_id in set(self.feeders).difference(self.client.feeders):
+            del self.feeders[feeder_id]
+            # Retain the subscribed visitor object so reappearance uses the same listeners.
+            self.visitors[feeder_id].apply_visits([], replace=True)
 
     def add_visitor_listener(
         self, feeder: Feeder, listener: VisitorCallback
     ) -> CALLBACK_TYPE:
-        """Register a callback to be called when a new visitor is detected."""
         if feeder.id not in self.visitors:
             self.visitors[feeder.id] = RecentVisitors(feeder, self.client, self.hass)
         return self.visitors[feeder.id].register_callback(listener)
 
-    async def _process_feed(self, feed: list[FeedNode]) -> None:
-        """Attempt to process new feed items.
+    def _apply_nodes(self, nodes: Sequence[FeedNode]) -> None:
+        self._apply_visits(
+            [
+                normalize_visit(node.data, known_feeder_ids=tuple(self.feeders))
+                for node in nodes
+                if node.data.get("__typename") in _VISITOR_KINDS
+            ]
+        )
 
-        There are some options for how we can process these:
-        - If the sighting contains a recognized bird, we can finish it automatically
-          using :func:`BirdBuddy.finish_postcard`.
-        - For all new postcards, we can simply emit a HA event, and leave it up to
-          the user's automations to finish them, however (and if) the user wants.
-        """
-        LOGGER.debug("Found feed items %s", feed)
-        postcards = [
-            node for node in feed if node.node_type == FeedNodeType.NewPostcard
-        ]
+    def _apply_visits(self, visits: Sequence[Visit]) -> None:
+        for feeder_id, visitors in self.visitors.items():
+            if feeder_id in self.feeders:
+                visitors.apply_visits(visits)
 
-        for node in feed:
-            if node.node_type == FeedNodeType.SpeciesUnlocked and (
-                c := Collection(node.get("collection"))
-            ):
-                LOGGER.info("Recently unlocked species: %s", c.bird_name)
-                self.client.collections.setdefault(c.collection_id, c)
-
-        LOGGER.debug("Found postcards %s", postcards)
-        for postcard in postcards:
-            LOGGER.debug("A new postcard is ready to process: %s", postcard)
-            if not self.hass.bus.async_listeners().get(EVENT_NEW_POSTCARD_SIGHTING):
-                # if no one is listening, no sense in getting sighting data
-                LOGGER.debug("No event listeners: skipping postcard conversion")
-                continue
-
-            # emit a new event with sighting data and postcard data
-            # expose services that can:
-            # 1. auto-collect a recognized bird
-            # 2. manually assign a species
-            # 3. auto-collect a best-guess species, using sightingReport confidence
-            # 4. assign the sighting as "mystery visitor"
-            # 5. all-in-one service that can choose the best option of 1, 3, or 4
-            # Automations could use the sighting media URLs to do additional AI processing,
-            # such as with Merlin or other AI classifiers, and then do #2 with the results.
-            # If this is a viable option, we can supply a Recipe in docs to show how this could
-            # be done. Similarly, we can supply some default blueprints to handle this with
-            # user input.
-            try:
-                sighting = await self.client.sighting_from_postcard(postcard=postcard)
-            except GraphqlError as err:
-                # Upstream #98: sightingCreateFromPostcard intermittently returns
-                # INTERNAL_SERVER_ERROR. This affects ONLY the auto-collect path
-                # (turning a postcard into a saved sighting for the
-                # collect_postcard service / Media Browser). It does NOT affect
-                # the recent-visitor image, which is fetched directly from the
-                # postcard feed node — see visitors._fetch_postcard_media. Skip
-                # just this postcard so one failure doesn't fail the whole update
-                # cycle (which would lose all subsequent postcards too, since
-                # refresh_feed has already advanced its cursor past them).
-                LOGGER.warning(
-                    "Postcard %s could not be auto-collected into a sighting "
-                    "(%s). This affects only the collect_postcard path; the "
-                    "recent-visitor image is fetched separately and is "
-                    "unaffected. Skipping this postcard.",
-                    postcard.node_id,
-                    err,
-                )
-                continue
-            data = slim_event_payload(postcard.data, sighting.data)
-            self.hass.bus.fire(
-                event_type=EVENT_NEW_POSTCARD_SIGHTING,
-                event_data=data,
-                origin=EventOrigin.remote,
+    def _require_intake(self) -> DurableIntake:
+        if self.intake is None or not self.intake.initialized:
+            raise ServiceValidationError(
+                "Postcard storage is not ready; check the Bird Buddy repair"
             )
+        return self.intake
+
+    def _record_feed_error(self, err: Exception) -> None:
+        error_type = type(err).__name__
+        if self.feed_error_type != error_type:
+            LOGGER.warning("Bird Buddy postcard processing paused (%s)", error_type)
+        self.feed_error_type = error_type
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            f"postcard_intake_{self.config_entry.entry_id}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="postcard_intake",
+            translation_placeholders={"error_type": self.feed_error_type},
+        )
+
+    async def _accept_pending(
+        self, *, backfill: bool = False, max_pages: int = 100
+    ) -> int:
+        self.verify_account_identity()
+        intake = self._require_intake()
+        mode = self._pending_intake_mode or (
+            "bootstrap"
+            if not intake.is_bootstrapped
+            else "backfill"
+            if backfill
+            else "live"
+        )
+        # Empty bootstrap has no timestamp boundary. Traverse all subsequent pages
+        # until one exists, keeping those arrivals live instead of suppressing them.
+        scan_all = backfill or (
+            intake.is_bootstrapped
+            and self.client.export_feed_checkpoint()["watermark"] is None
+        )
+        batch = await self.client.retrieve_feed_batch(
+            backfill=scan_all, max_pages=max_pages
+        )
+        self.verify_account_identity()
+        self._pending_intake_mode = mode
+        added = await intake.async_accept_batch(self.client, batch, mode=mode)
+        self._pending_intake_mode = None
+        self._apply_nodes(batch.nodes)
+        return added
+
+    async def _publish_intake_record(self, record: IntakeRecord) -> None:
+        self.verify_account_identity()
+        payload = record.payload
+        if payload.get("__typename") not in _VISITOR_KINDS:
+            return
+        visit = normalize_visit(payload, known_feeder_ids=tuple(self.feeders))
+        context: _EventContext = {
+            "config_entry_id": self.config_entry.entry_id,
+            "account_id": self.account_id,
+            "event_id": record.event_id,
+            "source": record.source,
+        }
+        if record.source == "backfill":
+            self.hass.bus.async_fire(
+                EVENT_POSTCARD_BACKFILL,
+                build_postcard_event(visit, **context),
+                EventOrigin.remote,
+            )
+            return
+        # Construct both payloads before emitting either, avoiding partial events
+        # when an identity cannot fit within recorder's byte limit.
+        notification = build_legacy_feed_item_event(visit, **context)
+        postcard = (
+            build_postcard_event(visit, **context)
+            if visit.kind == "FeedItemNewPostcard"
+            else None
+        )
+        if postcard is not None:
+            self.hass.bus.async_fire(EVENT_NEW_POSTCARD, postcard, EventOrigin.remote)
+        self.hass.bus.async_fire(EVENT_NEW_FEED_ITEM, notification, EventOrigin.remote)
 
     async def _async_update_data(self) -> BirdBuddy:
+        async with self.async_work():
+            return await self._async_update_account()
+
+    async def _async_update_account(self) -> BirdBuddy:
         try:
             await self.client.refresh()
-
-            # Skip processing the Feed on the first update. This works around a minor issue
-            # where the `automation` integration is not loaded yet by the time we make our first
-            # update call. If we proceed, we might emit the postcard feed items while there are
-            # no automations listening; and because refresh_feed() keeps track of the last seen
-            # feed item timestamp, that would prevent seeing that postcard again.
-            # This delays the first attempt at postcard handling until the next update interval.
-            if not self.first_update:
-                feed = await self.client.refresh_feed()
-                await self._process_feed(feed)
-        except AuthenticationFailedError as exc:
-            raise ConfigEntryAuthFailed("Bird Buddy authentication expired") from exc
-        except Exception as exc:
-            raise UpdateFailed(exc) from exc
-
-        if not self.client.feeders:
-            raise UpdateFailed("No Feeders found")
-
-        feeders = {id: BirdBuddyDevice(f) for (id, f) in self.client.feeders.items()}  # noqa: A001
-        # pylint: disable=invalid-name
-        for i, f in feeders.items():
-            if i in self.feeders:
-                self.feeders[i].update(f)
-            else:
-                self.feeders[i] = f
-        is_first_update = self.first_update
-        self.first_update = False
-
-        # Emit an event per newly-seen visitor-bearing feed item. Skip the very
-        # first (setup) poll entirely, mirroring the _process_feed first-update
-        # skip: no feed is fetched during setup, and fetching one here purely to
-        # seed would be a network call setup doesn't need — and would leak a DNS
-        # resolver thread under aiodns. The first poll AFTER setup seeds the
-        # existing backlog without firing (so a restart never replays it); only
-        # later polls fire. A failure here must not fail the whole update.
-        if not is_first_update:
-            try:
-                await self._fire_new_feed_item_events(
-                    seed_only=not self._feed_events_seeded
-                )
-                self._feed_events_seeded = True
-            except AuthenticationFailedError as exc:
-                raise ConfigEntryAuthFailed(
-                    "Bird Buddy authentication expired"
-                ) from exc
-            except Exception as exc:  # noqa: BLE001
-                LOGGER.debug("Firing %s events failed: %s", EVENT_NEW_FEED_ITEM, exc)
-
-        # Refresh the recent-visitor surface every poll. The event-driven path
-        # (RecentVisitors._on_new_postcard) only fires when a postcard converts
-        # to a sighting, which never happens for feeders without auto-ID — Bird
-        # Buddy returns INTERNAL_SERVER_ERROR (see _process_feed). Polling the
-        # feed here is the only way those feeders' mystery visitors ever surface
-        # after startup (#7). A refresh failure must not fail the whole update.
-        sole_feeder = len(self.client.feeders) == 1
-        for feeder_id, visitors in self.visitors.items():
-            try:
-                await visitors.async_update(sole_feeder=sole_feeder)
-            except AuthenticationFailedError as exc:
-                raise ConfigEntryAuthFailed(
-                    "Bird Buddy authentication expired"
-                ) from exc
-            except Exception as exc:  # noqa: BLE001
-                LOGGER.debug(
-                    "Recent-visitor refresh failed for feeder %s: %s",
-                    feeder_id,
-                    exc,
-                )
-
-        # Mark a successful poll (reached only if no UpdateFailed was raised).
+            self._verify_identity()
+            self._reconcile_feeders()
+        except AuthenticationFailedError as err:
+            raise ConfigEntryAuthFailed("Bird Buddy authentication expired") from err
+        except (ConfigEntryAuthFailed, UpdateFailed):
+            raise
+        except Exception as err:
+            raise UpdateFailed(
+                f"Bird Buddy telemetry failed ({type(err).__name__})"
+            ) from err
         self.last_update_timestamp = dt_util.utcnow()
-
+        async with self._feed_work_lock:
+            errors: list[Exception] = []
+            try:
+                if self.intake is None:
+                    self.intake = DurableIntake(
+                        self.hass, self.config_entry.entry_id, self.account_id
+                    )
+                if not self.intake.initialized:
+                    await self.intake.async_initialize(self.client)
+                await self._accept_pending()
+                await self.intake.async_dispatch(self._publish_intake_record)
+                if self.intake.dead_letter_count:
+                    errors.append(IntakeError("Postcard events need explicit retry"))
+            except AuthenticationFailedError as err:
+                raise ConfigEntryAuthFailed(
+                    "Bird Buddy authentication expired"
+                ) from err
+            except Exception as err:
+                errors.append(err)
+            # Refresh same-ID species/media/URL changes once per account, even if
+            # intake has already accepted that item. Apply after pending snapshots
+            # so an older persisted payload cannot replace fresher state.
+            try:
+                feed = await self.client.feed(first=100)
+                self.verify_account_identity()
+                self._apply_nodes(feed.validated_nodes())
+            except AuthenticationFailedError as err:
+                raise ConfigEntryAuthFailed(
+                    "Bird Buddy authentication expired"
+                ) from err
+            except Exception as err:
+                errors.append(err)
+            if errors:
+                self._record_feed_error(errors[0])
+            else:
+                self.feed_error_type = None
+                self.last_feed_success = dt_util.utcnow()
+                ir.async_delete_issue(
+                    self.hass, DOMAIN, f"postcard_intake_{self.config_entry.entry_id}"
+                )
+        if self.hass.state is CoreState.running:
+            check_legacy_listeners(self.hass)
         return self.client
 
-    def _mark_feed_item_seen(self, item_id: str) -> None:
-        """Record a feed-item id, evicting the oldest once the cap is reached."""
-        if item_id in self._seen_feed_ids:
-            return
-        if len(self._seen_feed_order) == self._seen_feed_order.maxlen:
-            # The deque is full; appending will drop the leftmost id, so remove
-            # it from the membership set first to keep the two in sync.
-            self._seen_feed_ids.discard(self._seen_feed_order[0])
-        self._seen_feed_order.append(item_id)
-        self._seen_feed_ids.add(item_id)
-
-    def _feeder_for_url(self, url: str | None) -> str | None:
-        """Best-effort feeder id for a media URL (the feed has no per-item feeder
-        field; the feeder id is embedded in the signed media URL)."""
-        if not url:
-            return None
-        return next((fid for fid in self.client.feeders if fid in url), None)
-
-    async def _fetch_new_postcard_media_map(self) -> dict[str, dict]:
-        """Map NewPostcard id -> first MediaImage dict, via the postcard-media
-        query (pybirdbuddy's feed omits `medias` on NewPostcard). Reuses the
-        v0.1.8 query so unidentified postcards still carry an image."""
-        try:
-            result = await self.client._make_request(query=_FEED_WITH_MEDIAS_QUERY)
-        except AuthenticationFailedError:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.debug("Postcard-media query failed for feed events: %s", exc)
-            return {}
-        edges = (((result or {}).get("me") or {}).get("feed") or {}).get("edges") or []
-        out: dict[str, dict] = {}
-        for edge in edges:
-            node = edge.get("node") or {}
-            if node.get("__typename") != "FeedItemNewPostcard":
-                continue
-            images = [
-                m
-                for m in (node.get("medias") or [])
-                if m.get("__typename") == "MediaImage"
-            ]
-            if images and node.get("id"):
-                out[node["id"]] = images[0]
-        return out
-
-    async def _fire_new_feed_item_events(self, *, seed_only: bool) -> None:
-        """Fire EVENT_NEW_FEED_ITEM once per newly-seen visitor-bearing item."""
-        feed = await self.client.feed()
-        items = [
-            node
-            for node in feed.filter(of_type=list(_NEW_FEED_ITEM_TYPES))
-            if node.node_id and node.node_id not in self._seen_feed_ids
-        ]
-        if seed_only:
-            for node in items:
-                self._mark_feed_item_seen(node.node_id)
-            return
-        if not items:
-            return
-
-        postcard_media: dict[str, dict] = {}
-        if any(n.node_type == FeedNodeType.NewPostcard for n in items):
-            postcard_media = await self._fetch_new_postcard_media_map()
-
-        for node in items:
-            self._fire_one_feed_item(node, postcard_media)
-            self._mark_feed_item_seen(node.node_id)
-
-    def _fire_one_feed_item(
-        self, node: FeedNode, postcard_media: dict[str, dict]
+    def validate_visit_target(
+        self, actual_feeder_id: str | None, data: Mapping[str, Any]
     ) -> None:
-        """Build and fire a slim EVENT_NEW_FEED_ITEM payload for one node.
+        from .hass_util import (
+            _feeder_id_for_device,
+        )  # account resolver imports coordinator
 
-        Slim by construction (refs + the fields automations need, not the full
-        nested feed blob), so it stays well under HA's 32768-byte recorder cap
-        (#78)."""
-        item_id = node.node_id
-        if node.node_type == FeedNodeType.NewPostcard:
-            media = postcard_media.get(item_id)
-        else:
-            images = [
-                m
-                for m in _media_list(node)
-                if m and m.get("__typename") == "MediaImage"
-            ]
-            media = images[0] if images else None
+        expected = data.get("feeder_id")
+        if device_id := data.get("device_id"):
+            device_feeder = _feeder_id_for_device(self.hass, device_id)
+            if expected is not None and expected != device_feeder:
+                raise ServiceValidationError("Selected device and feeder conflict")
+            expected = device_feeder
+        if expected is not None and expected != actual_feeder_id:
+            raise ServiceValidationError(
+                "Postcard does not identify the selected feeder"
+            )
 
-        content_url = media.get("contentUrl") if media else None
-        thumbnail_url = media.get("thumbnailUrl") if media else None
-        feeder_id = self._feeder_for_url(content_url) or self._feeder_for_url(
-            thumbnail_url
-        )
-
-        payload = {
-            "item_id": item_id,
-            "type": node.node_type.value,
-            "created_at": node.get("createdAt"),
-            "feeder_id": feeder_id,
-            "media_url": content_url,
-            "thumbnail_url": thumbnail_url,
+    async def _finish_failed_action(
+        self, item_id: str, err: BaseException, *, compound: bool = False
+    ) -> None:
+        # Resolver errors may follow a committed side effect. A compound action
+        # may have already identified before collection fails, so preserve doubt.
+        # Authentication may fail during the SDK's read reconciliation after a
+        # lost mutation response. Once intent is durable, auth failure alone
+        # cannot prove that no write happened. Preflight auth failures occur
+        # before async_begin_action and never enter this outcome handler.
+        rejected = isinstance(err, HttpResponseError) and err.status in {
+            400,
+            401,
+            403,
+            404,
+            405,
+            413,
+            415,
+            422,
+            429,
         }
-        self.hass.bus.fire(
-            event_type=EVENT_NEW_FEED_ITEM,
-            event_data=payload,
-            origin=EventOrigin.remote,
-        )
+        status = "failed" if rejected and not compound else "unknown"
+        try:
+            await self._require_intake().async_finish_action(
+                item_id, status, error_type=type(err).__name__
+            )
+        except Exception as storage_error:
+            self._record_feed_error(storage_error)
+            # The durable in_progress entry becomes unknown on restart.
 
-    async def handle_collect_postcard(self, data: dict[str, Any]) -> bool:
-        """Handle the `birdbuddy.collect_postcard` service call."""
-        sighting = PostcardSighting(data["sighting"])
-        postcard_id = data["postcard"]["id"]
-        strategy = SightingFinishStrategy(data.get("strategy", "recognized"))
-        confidence = data.get("best_guess_confidence")
-        share_media = data.get("share_media", False)
+    async def handle_collect_postcard(
+        self, request: PostcardCollectionRequest
+    ) -> dict[str, Any]:
+        async with self.async_work():
+            return await self._async_collect_postcard(request)
 
-        LOGGER.debug(
-            "Calling collect_postcard: id=%s, sighting=%s, strategy=%s",
-            postcard_id,
-            sighting,
-            strategy,
-        )
-        success = await self.client.finish_postcard(
-            postcard_id,
-            sighting,
-            strategy,
-            confidence_threshold=confidence,
-            share_media=share_media,
-        )
-        if success:
-            LOGGER.info("Postcard collected to Media")
-        else:
-            # TODO: more info
-            LOGGER.warning("Postcard could not be collected")
-        return success
+    async def _async_collect_postcard(
+        self, request: PostcardCollectionRequest
+    ) -> dict[str, Any]:
+        intake = self._require_intake()
+        try:
+            self.verify_account_identity()
+            async with intake.postcard_lock(request.postcard_id):
+                visit = await self.client.get_feed_item(request.postcard_id)
+                self.verify_account_identity()
+                self.validate_visit_target(visit.feeder_id, asdict(request))
+                if visit.kind != "FeedItemNewPostcard":
+                    raise ServiceValidationError("Only a new postcard can be collected")
+                await intake.async_begin_action(
+                    request.postcard_id,
+                    {
+                        "operation": "collect",
+                        "share": request.share,
+                        "identify": request.identify,
+                    },
+                )
+                try:
+                    result = await self.client.collect_postcard(
+                        request.postcard_id,
+                        share=request.share,
+                        identify=request.identify,
+                    )
+                    self.verify_account_identity()
+                    if result.receipt is None:
+                        raise ValueError("Collection has no confirmed receipt")
+                    receipt = asdict(result.receipt) | {
+                        "collected_postcard_id": result.id
+                    }
+                    await intake.async_finish_action(
+                        request.postcard_id, "succeeded", receipt
+                    )
+                except BaseException as err:
+                    await self._finish_failed_action(
+                        request.postcard_id, err, compound=request.identify
+                    )
+                    raise
+                self._apply_visits(
+                    [normalize_visit(result.data, known_feeder_ids=tuple(self.feeders))]
+                )
+            try:
+                await self.client.refresh_collections(force=True)
+            except AuthenticationFailedError:
+                self.config_entry.async_start_reauth(self.hass)
+            except Exception as err:
+                LOGGER.debug(
+                    "Collection saved; browser refresh deferred (%s)",
+                    type(err).__name__,
+                )
+            return receipt
+        except AuthenticationFailedError as err:
+            self.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError("Bird Buddy authentication expired") from err
+        except IntakeError as err:
+            raise ServiceValidationError(str(err)) from err
+        except ServiceValidationError:
+            raise
+        except Exception as err:
+            raise HomeAssistantError(
+                f"Postcard action failed or needs review ({type(err).__name__})"
+            ) from err
+
+    async def handle_identify_postcard(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        async with self.async_work():
+            return await self._async_identify_postcard(data)
+
+    async def _async_identify_postcard(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        intake = self._require_intake()
+        item_id = data["postcard_id"]
+        try:
+            self.verify_account_identity()
+            async with intake.postcard_lock(item_id):
+                visit = await self.client.get_feed_item(item_id)
+                self.verify_account_identity()
+                self.validate_visit_target(visit.feeder_id, data)
+                if visit.kind != "FeedItemNewPostcard":
+                    raise ServiceValidationError(
+                        "Only a new postcard can be identified"
+                    )
+                await intake.async_begin_action(item_id, {"operation": "identify"})
+                try:
+                    result = await self.client.identify_postcard(item_id)
+                    self.verify_account_identity()
+                    await intake.async_finish_action(
+                        item_id, "succeeded", {"postcard_id": item_id}
+                    )
+                except BaseException as err:
+                    await self._finish_failed_action(item_id, err)
+                    raise
+                identified = normalize_visit(
+                    result.data, known_feeder_ids=tuple(self.feeders)
+                )
+                self._apply_visits([identified])
+                return postcard_details(
+                    identified,
+                    config_entry_id=self.config_entry.entry_id,
+                    account_id=self.account_id,
+                )
+        except AuthenticationFailedError as err:
+            self.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError("Bird Buddy authentication expired") from err
+        except IntakeError as err:
+            raise ServiceValidationError(str(err)) from err
+        except ServiceValidationError:
+            raise
+        except Exception as err:
+            raise HomeAssistantError(
+                f"Postcard identification needs review ({type(err).__name__})"
+            ) from err
+
+    async def async_backfill(self, *, max_pages: int = 10) -> dict[str, Any]:
+        async with self.async_work():
+            return await self._async_backfill(max_pages=max_pages)
+
+    async def _async_backfill(self, *, max_pages: int) -> dict[str, Any]:
+        async with self._feed_work_lock:
+            intake = self._require_intake()
+            # Persist any previous live/backfill batch with its original source.
+            if self._pending_intake_mode or not intake.is_bootstrapped:
+                await self._accept_pending()
+            queued = await self._accept_pending(backfill=True, max_pages=max_pages)
+            delivered = await intake.async_dispatch(self._publish_intake_record)
+            return {
+                "queued": queued,
+                "delivered": delivered,
+                "pending": intake.pending_count,
+            }
+
+    async def async_retry_feed_items(self, item_id: str | None) -> int:
+        """Own recovery writes through unload; never repeat cloud actions."""
+        async with self.async_work():
+            self.verify_account_identity()
+            retried = await self._require_intake().async_retry_failed(item_id)
+            await self.async_request_refresh()
+            return retried
+
+    async def async_acknowledge_postcard_retry(self, item_id: str) -> None:
+        """Record the explicit retry decision within the current owner lifetime."""
+        async with self.async_work():
+            self.verify_account_identity()
+            intake = self._require_intake()
+            async with intake.postcard_lock(item_id):
+                await intake.async_acknowledge_action_retry(item_id)

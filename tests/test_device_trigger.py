@@ -1,5 +1,7 @@
 """The tests for Bird Buddy device triggers."""
 
+from types import SimpleNamespace
+
 import pytest
 from pytest_unordered import unordered
 from homeassistant.components.automation.const import DOMAIN as AUTOMATION_DOMAIN
@@ -17,7 +19,7 @@ from tests.ha_compat import common as ha_test_common
 
 from custom_components.birdbuddy import DOMAIN
 from custom_components.birdbuddy import device_trigger
-from custom_components.birdbuddy.const import EVENT_NEW_POSTCARD_SIGHTING
+from custom_components.birdbuddy.const import EVENT_NEW_POSTCARD
 
 
 async def setup_automation(hass, device_id, feeder_id, trigger_type):
@@ -72,35 +74,45 @@ async def test_get_triggers(
     assert triggers == unordered(expected_triggers)
 
 
-async def test_fires_on_postcard_event(
-    hass, device_reg: device_registry.DeviceRegistry, calls
+@pytest.mark.parametrize(
+    ("event_feeder", "event_account", "source", "expected"),
+    [
+        ("feeder1", "same", "live", 1),
+        ("feeder2", "same", "live", 0),
+        ("feeder1", "different", "live", 0),
+        ("feeder1", "same", "backfill", 0),
+    ],
+)
+async def test_account_scoped_device_trigger(
+    hass, device_reg, calls, event_feeder, event_account, source, expected
 ):
-    """Test new-postcard event firing triggers the device."""
-    config_entry = ha_test_common.MockConfigEntry(domain="birdbuddy", data={})
-    config_entry.add_to_hass(hass)
-    device_entry = device_reg.async_get_or_create(
-        config_entry_id=config_entry.entry_id,
-        identifiers={(DOMAIN, "feeder1")},
+    entry = ha_test_common.MockConfigEntry(
+        domain=DOMAIN, data={}, state=ConfigEntryState.LOADED
     )
-    assert await setup_automation(hass, device_entry.id, "feeder1", "new_postcard")
-
-    message = {"sighting": {"feeder": {"id": "feeder1"}}, "postcard": {}}
-    hass.bus.async_fire(EVENT_NEW_POSTCARD_SIGHTING, message)
+    entry.add_to_hass(hass)
+    device = device_reg.async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={(DOMAIN, "feeder1")}
+    )
+    hass.data[DOMAIN] = {
+        entry.entry_id: SimpleNamespace(
+            config_entry=entry, feeders={"feeder1": object()}
+        )
+    }
+    assert await setup_automation(hass, device.id, "feeder1", "new_postcard")
+    hass.bus.async_fire(
+        EVENT_NEW_POSTCARD,
+        {
+            "feeder_id": event_feeder,
+            "config_entry_id": entry.entry_id
+            if event_account == "same"
+            else "other-entry",
+            "source": source,
+            "postcard_id": "postcard-a",
+        },
+        origin=EventOrigin.remote,
+    )
     await hass.async_block_till_done()
-    assert len(calls) == 1
-    assert calls[0].data["message"] == "triggered"
-
-
-async def test_does_not_fire_on_postcard_event_for_other_feeder(hass, calls):
-    """Test new-postcard event for a different device does not trigger the automation."""
-    # Automation is listening for `feeder2`
-    assert await setup_automation(hass, "deviceid", "feeder2", "new_postcard")
-
-    # but our event is for `feeder1`
-    message = {"sighting": {"feeder": {"id": "feeder1"}}, "postcard": {}}
-    hass.bus.async_fire(EVENT_NEW_POSTCARD_SIGHTING, message, origin=EventOrigin.remote)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
+    assert len(calls) == expected
 
 
 async def test_config_schema(hass, device_reg):

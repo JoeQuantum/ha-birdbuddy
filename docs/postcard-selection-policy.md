@@ -53,6 +53,8 @@ integration does not send `mediaSpeciesItems` or attempt anomaly correction.
 
 ## Service contract
 
+<!-- markdownlint-disable MD013 -->
+
 | Input | Result |
 | --- | --- |
 | `postcard_id` plus `selection_policy: server` | Use the modern server-selected collection path. |
@@ -64,9 +66,11 @@ integration does not send `mediaSpeciesItems` or attempt anomaly correction.
 | Boolean `share_media` | Temporary alias for the modern `share` intent. Conflicting aliases are rejected. |
 | Absent sharing option | `share: false`. |
 | Absent `identify` | `identify: false`; collection does not implicitly run inference. |
-| `identify: true` | Explicitly request inference before collection; subject to BB-09's bounded operation handling. |
+| `identify: true` | Explicitly request inference before collection; subject to bounded operation handling. |
 | String/numeric sharing value | Reject; `"false"` must never become truthy sharing. |
 | Conflicting or ambiguous account/device/feeder targets | Reject before invoking the client. |
+
+<!-- markdownlint-enable MD013 -->
 
 The sharing alias maps the user's requested sharing intent to the modern
 `share` input. It does not claim that the server's media-selection behavior

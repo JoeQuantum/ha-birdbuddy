@@ -5,9 +5,12 @@ selected public-contract fields from the canonical `Visit` model. It contains
 no report token, match token, fabricated sighting report, or raw API response.
 Event creation does not identify, collect, or share a postcard.
 
+<!-- markdownlint-disable MD013 -->
+
 | Field | Meaning |
 | --- | --- |
 | `postcard_id` | The vendor feed-item/postcard ID. |
+| `event_id`, `source` | Stable durable-delivery ID and `live`/`backfill` source; included before measuring the byte budget. |
 | `config_entry_id`, `account_id` | The HA entry and separate authenticated vendor account ID. |
 | `feeder_id`, `attribution` | Known feeder and attribution evidence, or null when unknown. |
 | `kind`, `created_at` | API item kind and normalized UTC timestamp; malformed/missing dates remain null. |
@@ -19,6 +22,8 @@ Event creation does not identify, collect, or share a postcard.
 | `medias_complete`, `media_complete`, `species_complete` | Whether the corresponding selected details are intact. |
 | `details_required`, `omitted_fields` | Explicit indication of event compaction. |
 | `details` | Discoverable read-only detail action and account-scoped request data. |
+
+<!-- markdownlint-enable MD013 -->
 
 Each media object contains `id`, `kind`, `created_at`, `content_url`, and
 `thumbnail_url`. `kind` retains the API type, such as `MediaImage` or
@@ -56,8 +61,9 @@ species. It makes one `get_feed_item` read on the resolved account and performs
 no inference, collection, or sharing. It refreshes the selected API detail;
 it is not a local archival snapshot and availability still depends on the
 account and upstream item. It does not apply the recorder event-size budget
-to the response or silently drop assets. BB-31's optional archive is a separate
-feature and is not required for this lookup.
+to the response or silently drop assets.
+[Local archiving](local-archive.md) is a separate workflow and is not required
+for this lookup.
 
 ## Compatibility and migration
 
@@ -77,10 +83,9 @@ the canonical event and explicit modern selection policy. Unsupported strategy,
 confidence, and sighting fields fail immediately, even during compatibility.
 No automation is rewritten and no collection is automatically performed.
 
-Safe notification/ID/sharing aliases are retained for the first modern-API
-minor release and the following minor release. They may be removed in the
-next minor release; release notes must name those concrete release numbers
-before the first modern-API release is published. Repairs and examples expose
-the migration during that window. The adapter function and policy validator
-are separate from registration so the coordinator/service wiring can apply
-the same contract to all consumers.
+The notification adapter and equivalent ID/sharing aliases remain available
+through releases **0.2 and 0.3**, with removal planned for **0.4.0**. Repairs
+expose this migration window. No old strategy or sighting contract is restored.
+Use the [migration guide](automation-migration.md) to replace an installed
+blueprint copy and the [notification example](notifications.md) for safe image,
+video and unidentified-species handling.

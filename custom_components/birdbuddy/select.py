@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-from birdbuddy.feeder import PowerProfile
-from birdbuddy.exceptions import GraphqlError
+from birdbuddy.feeder import Feeder, FeederControlError, PowerProfile
 
 from homeassistant.components.select import (
     SelectEntity,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
+from .control import async_run_control
 from .coordinator import BirdBuddyDataUpdateCoordinator
+from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
 from .entity import BirdBuddyMixin
 
@@ -27,8 +28,18 @@ async def async_setup_entry(
 ) -> None:
     """Set up entities from a config entry."""
     coordinator: BirdBuddyDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    feeders = coordinator.feeders.values()
-    async_add_entities(BirdBuddyPowerProfileSelector(f, coordinator) for f in feeders)
+    async_register_feeder_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        [
+            lambda feeder: (
+                BirdBuddyPowerProfileSelector(feeder, coordinator)
+                if feeder.is_owner
+                else None
+            ),
+        ],
+    )
 
 
 class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
@@ -63,24 +74,45 @@ class BirdBuddyPowerProfileSelector(BirdBuddyMixin, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        return self.feeder.power_profile.value.lower()
+        """The selected setting, separate from Smart Energy's running mode."""
+        if not self.feeder.is_owner:
+            return None
+        if self.feeder.get("powerProfile") not in {
+            profile.value
+            for profile in PowerProfile
+            if profile is not PowerProfile.UNKNOWN
+        }:
+            return None
+        return self.feeder.selected_power_profile.value.lower()
 
     @property
     def available(self) -> bool:
-        return super().available and self.feeder.is_owner
+        return (
+            super().available
+            and self.feeder.is_owner
+            and self.current_option is not None
+        )
 
     async def async_select_option(self, option: str) -> None:
-        profile = PowerProfile(option.upper())
-        assert profile != PowerProfile.UNKNOWN
-        try:
-            result = await self.coordinator.client.set_power_profile(
-                self.feeder,
-                profile,
+        options = {
+            profile.value.lower(): profile
+            for profile in PowerProfile
+            if profile is not PowerProfile.UNKNOWN
+        }
+        if not isinstance(option, str) or option not in options:
+            raise ServiceValidationError("Unsupported Bird Buddy power profile")
+
+        async def set_profile() -> Feeder:
+            # This compatibility API returns the selected field only. Its full
+            # verification refresh is available in the account-scoped cache.
+            await self.coordinator.client.set_power_profile(
+                self.feeder, options[option]
             )
-            if result:
-                self.feeder.update(result)
-                self.async_write_ha_state()
-        except GraphqlError as err:
-            raise HomeAssistantError(
-                f"Cannot set Power Profile for {self.entity_id} to {option}: {err}"
-            ) from err
+            confirmed = self.coordinator.client.feeders.get(self.feeder.id)
+            if confirmed is None:
+                raise FeederControlError(
+                    "Completed control has no confirmed feeder", action_completed=True
+                )
+            return confirmed
+
+        await async_run_control(self, set_profile)

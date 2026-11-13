@@ -1,73 +1,117 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Apparaat is al geconfigureerd",
-            "reauth_successful": "Opnieuw verifi\u00ebren is geslaagd"
-        },
-        "error": {
-            "cannot_connect": "Kan geen verbinding maken",
-            "invalid_auth": "Ongeldige authenticatie",
-            "unknown": "Onverwachte fout",
-            "wrong_account": "Deze inloggegevens horen bij een ander Bird Buddy-account."
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "email": "E-mail",
-                    "password": "Wachtwoord"
-                },
-                "title": "Voer de login gegevens van je Bird Buddy in"
-            },
-            "reauth_confirm": {
-                "title": "Bird Buddy opnieuw verifi\u00ebren",
-                "description": "Voer de inloggegevens voor hetzelfde Bird Buddy-account in.",
-                "data": {
-                    "email": "E-mail",
-                    "password": "Wachtwoord"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Dit account is al ingesteld",
+      "reauth_successful": "Opnieuw verifiëren is geslaagd"
     },
-    "device_automation": {
-        "trigger_type": {
-            "new_postcard": "Er staat een nieuwe ansichtkaart klaar"
-        }
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken",
+      "invalid_auth": "Ongeldige authenticatie",
+      "unknown": "Onverwachte fout",
+      "wrong_account": "Deze inloggegevens horen bij een ander Bird Buddy-account.",
+      "social_auth_unsupported": "Dit account vereist aanmelden via een sociale aanbieder. Deze integratie ondersteunt die aanmeldmethode niet."
     },
-    "entity": {
-        "select": {
-            "metric_state": {
-                "state": {
-                    "high": "Hoog",
-                    "low": "Laag",
-                    "medium": "Gemiddeld"
-                }
-            }
+    "step": {
+      "user": {
+        "data": {
+          "email": "E-mail",
+          "password": "Wachtwoord"
         },
-        "sensor": {
-            "feeder_state": {
-                "state": {
-                    "deep_sleep": "Aan het slapen",
-                    "factory_reset": "Reset naar fabrieksinstellingen",
-                    "firmware_update": "Bijwerken van de firmware",
-                    "off_grid": "Off-grid",
-                    "offline": "Offline",
-                    "online": "Online",
-                    "out_of_feeder": "Camera is buiten de feeder",
-                    "pending_factory_reset": "Bezig met reset naar fabrieksinstellingen",
-                    "pending_removal": "Bezig met verwijderen",
-                    "ready_to_stream": "Gereed voor opnamen",
-                    "streaming": "Streaming (video)",
-                    "taking_postcards": "Opnames aan het maken",
-                    "unknown": "Onbekend"
-                }
-            },
-            "metric_state": {
-                "state": {
-                    "high": "Hoog",
-                    "low": "Laag",
-                    "medium": "Gemiddeld"
-                }
-            }
+        "title": "Voer de login gegevens van je Bird Buddy in"
+      },
+      "reauth_confirm": {
+        "title": "Bird Buddy opnieuw verifiëren",
+        "description": "Voer de inloggegevens voor hetzelfde Bird Buddy-account in.",
+        "data": {
+          "email": "E-mail",
+          "password": "Wachtwoord"
         }
+      }
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "new_postcard": "Er staat een nieuwe ansichtkaart klaar"
+    }
+  },
+  "entity": {
+    "select": {
+      "metric_state": {
+        "state": {
+          "high": "Hoog",
+          "low": "Laag",
+          "medium": "Gemiddeld"
+        }
+      },
+      "power_profile": {
+        "state": {
+          "frenzy_mode": "Frenzy-modus",
+          "standard_mode": "Standaardmodus",
+          "power_saver_mode": "Energiebesparingsmodus",
+          "ultra_frenzy_mode": "Ultra Frenzy-modus"
+        }
+      }
+    },
+    "sensor": {
+      "feeder_state": {
+        "state": {
+          "deep_sleep": "Aan het slapen",
+          "factory_reset": "Reset naar fabrieksinstellingen",
+          "firmware_update": "Bijwerken van de firmware",
+          "off_grid": "Off-grid",
+          "offline": "Offline",
+          "online": "Online",
+          "out_of_feeder": "Camera is buiten de feeder",
+          "pending_factory_reset": "Bezig met reset naar fabrieksinstellingen",
+          "pending_removal": "Bezig met verwijderen",
+          "ready_to_stream": "Gereed voor opnamen",
+          "streaming": "Streaming (video)",
+          "taking_postcards": "Opnames aan het maken",
+          "unknown": "Onbekend"
+        }
+      },
+      "metric_state": {
+        "state": {
+          "high": "Hoog",
+          "low": "Laag",
+          "medium": "Gemiddeld"
+        }
+      },
+      "last_sync": {
+        "name": "Laatste synchronisatie"
+      }
+    },
+    "switch": {
+      "audio_enabled": {
+        "name": "Audio ingeschakeld"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bird Buddy-opties",
+        "data": {
+          "polling_interval": "Opvraaginterval (minuten)"
+        },
+        "data_description": {
+          "polling_interval": "Interval voor het opvragen van accountgegevens in minuten (1–20), standaard 10. De verwerking van ansichtkaarten kan onafhankelijk van de telemetrie mislukken."
+        }
+      }
+    }
+  },
+  "issues": {
+    "legacy_postcard_contract": {
+      "title": "Bird Buddy-automatiseringen voor ansichtkaarten bijwerken",
+      "description": "De oude ansichtkaartworkflow met report-token wordt niet meer uitgezonden. Gebruik birdbuddy_new_postcard en postcard_id. Voor de oude strategie-, betrouwbaarheids- en sighting-velden bestaat geen bevestigde vervanging. Controleer het verzamelbeleid en kies expliciet selection_policy: server voordat je verzamelen inschakelt. Je automatiseringen zijn niet herschreven."
+    },
+    "deprecated_postcard_aliases": {
+      "title": "Veldnamen van Bird Buddy-acties bijwerken",
+      "description": "Vervang postcard.id door postcard_id en share_media door share. Deze gelijkwaardige aliassen blijven beschikbaar in versies 0.2 en 0.3 en worden naar verwachting verwijderd in {removal_version}. Geef selection_policy: server expliciet op."
+    },
+    "postcard_intake": {
+      "title": "De bezorging van Bird Buddy-ansichtkaarten vereist aandacht",
+      "description": "De verwerking van ansichtkaarten meldde {error_type}. De telemetrie van de feeder kan doorgaan. Controleer de diagnostiek en de documentatie over blijvende gebeurtenisopslag voordat je mislukte gebeurtenissen of verzamelacties met een onzekere uitkomst opnieuw probeert. Acties met een onzekere uitkomst worden niet automatisch herhaald."
+    }
+  }
 }

@@ -26,7 +26,8 @@ from homeassistant.helpers.typing import ConfigType
 from . import DOMAIN
 from .const import (
     CONF_FEEDER_ID,
-    EVENT_NEW_POSTCARD_SIGHTING,
+    CONF_CONFIG_ENTRY_ID,
+    EVENT_NEW_POSTCARD,
     TRIGGER_TYPE_POSTCARD,
 )
 from .hass_util import (
@@ -91,19 +92,21 @@ async def async_attach_trigger(
     trigger_info: TriggerInfo,
 ) -> CALLBACK_TYPE:
     """Attach a trigger."""
-    event_data = {}
-    if CONF_FEEDER_ID not in config:
-        config[CONF_FEEDER_ID] = _feeder_id_for_device(hass, config[CONF_DEVICE_ID])
-    if CONF_FEEDER_ID in config:
-        # Add feeder id to trigger event data
-        # The event will include .sighting.feeder.id, so that's what we will trigger on
-        event_data["sighting"] = {"feeder": {"id": config[CONF_FEEDER_ID]}}
+    coordinator = _find_coordinator_by_device(hass, config[CONF_DEVICE_ID])
+    feeder_id = _feeder_id_for_device(hass, config[CONF_DEVICE_ID])
+    if config.get(CONF_FEEDER_ID, feeder_id) != feeder_id:
+        raise InvalidDeviceAutomationConfig("Device and feeder targets conflict")
+    event_data = {
+        CONF_FEEDER_ID: feeder_id,
+        CONF_CONFIG_ENTRY_ID: coordinator.config_entry.entry_id,
+        "source": "live",
+    }
     event_config = cast(
         ConfigType,
         event_trigger.TRIGGER_SCHEMA(
             {
                 CONF_PLATFORM: "event",
-                event_trigger.CONF_EVENT_TYPE: EVENT_NEW_POSTCARD_SIGHTING,
+                event_trigger.CONF_EVENT_TYPE: EVENT_NEW_POSTCARD,
                 CONF_EVENT_DATA: event_data,
             }
         ),

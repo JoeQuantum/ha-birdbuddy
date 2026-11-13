@@ -178,6 +178,39 @@ async def test_detail_response_rejects_wrong_card_identity():
         await async_get_postcard_details(client, "different-card", **ACCOUNT)
 
 
+@pytest.mark.parametrize(
+    "builder", [build_postcard_event, build_legacy_feed_item_event]
+)
+def test_stable_delivery_identity_and_backfill_source_are_inside_the_byte_budget(
+    builder,
+):
+    visit = normalize_visit(load_fixture("postcard_long_urls.json"))
+    result = builder(
+        visit, **ACCOUNT, event_id="birdbuddy:stable-id", source="backfill"
+    )
+    assert result["event_id"] == "birdbuddy:stable-id"
+    assert result["source"] == "backfill"
+    assert event_data_size(result) <= EVENT_DATA_BUDGET_BYTES
+    assert result["details_required"] is True
+
+
+@pytest.mark.parametrize(
+    "context",
+    [
+        {"source": "guessed-history"},
+        {"event_id": ""},
+        {"event_id": 123},
+        {"event_id": "x" * 31_000},
+    ],
+)
+def test_invalid_or_unrepresentable_delivery_context_is_never_silently_rewritten(
+    context,
+):
+    visit = normalize_visit(load_fixture("postcard_complete.json"))
+    with pytest.raises(ValueError):
+        build_postcard_event(visit, **ACCOUNT, **context)
+
+
 @pytest.mark.parametrize("budget", [0, 30_001, 50])
 def test_invalid_budget_or_unrepresentable_envelope_fails_explicitly(budget):
     visit = normalize_visit(load_fixture("postcard_complete.json"))

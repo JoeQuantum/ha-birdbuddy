@@ -74,6 +74,16 @@ def event_data_size(payload: dict[str, Any]) -> int:
     return len(json_bytes(payload))
 
 
+def _delivery_context(
+    payload: dict[str, Any], event_id: str | None, source: str
+) -> None:
+    if source not in {"live", "backfill"}:
+        raise ValueError("Event source must be live or backfill")
+    if event_id is not None and (not isinstance(event_id, str) or not event_id):
+        raise ValueError("event_id must be a nonempty stable ID")
+    payload.update(event_id=event_id, source=source)
+
+
 def _bounded(payload: dict[str, Any], max_bytes: int) -> dict[str, Any]:
     """Compact a fresh DTO, declaring every omission and retaining detail routing."""
     if not 0 < max_bytes <= EVENT_DATA_BUDGET_BYTES:
@@ -128,13 +138,16 @@ def build_postcard_event(
     *,
     config_entry_id: str,
     account_id: str,
+    event_id: str | None = None,
+    source: str = "live",
     max_bytes: int = EVENT_DATA_BUDGET_BYTES,
 ) -> dict[str, Any]:
     """Build schema v1 for birdbuddy_new_postcard without changing canonical data."""
-    return _bounded(
-        postcard_details(visit, config_entry_id=config_entry_id, account_id=account_id),
-        max_bytes,
+    payload = postcard_details(
+        visit, config_entry_id=config_entry_id, account_id=account_id
     )
+    _delivery_context(payload, event_id, source)
+    return _bounded(payload, max_bytes)
 
 
 def build_legacy_feed_item_event(
@@ -142,6 +155,8 @@ def build_legacy_feed_item_event(
     *,
     config_entry_id: str,
     account_id: str,
+    event_id: str | None = None,
+    source: str = "live",
     max_bytes: int = EVENT_DATA_BUDGET_BYTES,
 ) -> dict[str, Any]:
     """Retain the notification event's six fields plus the canonical contract.
@@ -152,6 +167,7 @@ def build_legacy_feed_item_event(
     payload = postcard_details(
         visit, config_entry_id=config_entry_id, account_id=account_id
     )
+    _delivery_context(payload, event_id, source)
     image = visit.representative_image
     payload.update(
         {

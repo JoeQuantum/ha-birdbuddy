@@ -19,6 +19,12 @@ class BirdBuddyDevice(Feeder):
     @property
     def device_info(self) -> DeviceInfo:
         """The Home Assistant DeviceInfo"""
+        if self.get("__typename") not in {"FeederForOwner", "FeederForMember"}:
+            return DeviceInfo(
+                identifiers={(DOMAIN, self.id)},
+                manufacturer=MANUFACTURER,
+                name=self.name,
+            )
         return DeviceInfo(
             identifiers={(DOMAIN, self.id)},
             manufacturer=MANUFACTURER,

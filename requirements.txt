@@ -2,4 +2,4 @@
 # Home Assistant itself is provided by the user's installation. Test harnesses
 # select their own exact HA version in requirements.test*.txt.
 python-graphql-client==0.4.3
-pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@v0.0.25
+pybirdbuddy @ git+https://github.com/JoeQuantum/pybirdbuddy@593bf8df89ef04291a79004df9bfd89c30d1889d

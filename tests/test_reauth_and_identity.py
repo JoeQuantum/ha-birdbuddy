@@ -4,8 +4,14 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
-from birdbuddy.exceptions import AuthenticationFailedError, NoResponseError
+from birdbuddy.client import BirdBuddy
+from birdbuddy.exceptions import (
+    AuthenticationFailedError,
+    NoResponseError,
+    SocialAuthenticationRequiredError,
+)
 from birdbuddy.user import BirdBuddyUser
+from birdbuddy.feed import Feed
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -169,6 +175,7 @@ async def test_reauth_never_rebinds_an_existing_entry(
     ("error", "message"),
     [
         (AuthenticationFailedError(), "invalid_auth"),
+        (SocialAuthenticationRequiredError(["GOOGLE"]), "social_auth_unsupported"),
         (NoResponseError(), "cannot_connect"),
     ],
 )
@@ -237,7 +244,7 @@ async def test_coordinator_distinguishes_auth_from_transient_failure(
     hass, error, expected
 ):
     entry = ha_test_common.MockConfigEntry(domain=DOMAIN, data={})
-    client = SimpleNamespace(refresh=AsyncMock(side_effect=error))
+    client = MagicMock(refresh=AsyncMock(side_effect=error))
     coordinator = BirdBuddyDataUpdateCoordinator(hass, client, entry)
     assert coordinator.config_entry is entry
     with pytest.raises(expected):
@@ -281,17 +288,27 @@ async def test_setup_persists_identity_without_rebinding(
     if stored_id:
         data[CONF_ACCOUNT_ID] = stored_id
     entry = ha_test_common.MockConfigEntry(
-        domain=DOMAIN, unique_id="old@example.invalid", data=data
+        domain=DOMAIN,
+        unique_id="old@example.invalid",
+        data=data,
+        state=config_entries.ConfigEntryState.SETUP_IN_PROGRESS,
     )
     entry.add_to_hass(hass)
+    client = BirdBuddy("old@example.invalid", "password")
+
+    async def refresh_profile():
+        return client._save_me({"user": dict(_user(new_id)), "feeders": []})
+
+    client.refresh = AsyncMock(side_effect=refresh_profile)
+    client.feed = AsyncMock(
+        return_value=Feed(
+            {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+        )
+    )
     with (
         patch(
             "custom_components.birdbuddy.BirdBuddy",
-            return_value=SimpleNamespace(user=_user(new_id)),
-        ),
-        patch(
-            "custom_components.birdbuddy.BirdBuddyDataUpdateCoordinator.async_config_entry_first_refresh",
-            new=AsyncMock(),
+            return_value=client,
         ),
         patch(
             "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
@@ -314,17 +331,14 @@ async def test_setup_retries_missing_account_identity(hass, profile):
     entry = ha_test_common.MockConfigEntry(
         domain=DOMAIN,
         data={"email": "old@example.invalid", "password": "password"},
+        state=config_entries.ConfigEntryState.SETUP_IN_PROGRESS,
     )
     entry.add_to_hass(hass)
     original_data = dict(entry.data)
     with (
         patch(
             "custom_components.birdbuddy.BirdBuddy",
-            return_value=SimpleNamespace(user=profile),
-        ),
-        patch(
-            "custom_components.birdbuddy.BirdBuddyDataUpdateCoordinator.async_config_entry_first_refresh",
-            new=AsyncMock(),
+            return_value=SimpleNamespace(user=profile, refresh=AsyncMock(), feeders={}),
         ),
         patch(
             "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
@@ -338,38 +352,37 @@ async def test_setup_retries_missing_account_identity(hass, profile):
     assert entry.entry_id not in hass.data[DOMAIN]
 
 
-@pytest.mark.parametrize("stage", ["feed_events", "visitors", "postcard_media"])
+@pytest.mark.parametrize("stage", ["visitor_snapshot", "event_intake"])
 @pytest.mark.parametrize("auth_error", [True, False])
 async def test_secondary_polling_auth_errors_are_not_hidden(hass, stage, auth_error):
-    """Optional data failures may be tolerated, expired credentials require recovery."""
-    entry = ha_test_common.MockConfigEntry(domain=DOMAIN, data={})
+    """Optional read errors preserve telemetry; expired credentials require recovery."""
+    entry = ha_test_common.MockConfigEntry(
+        domain=DOMAIN, data={CONF_ACCOUNT_ID: "account-a"}
+    )
     client = MagicMock()
+    client.user = _user()
     client.refresh = AsyncMock(return_value=True)
-    client.refresh_feed = AsyncMock(return_value=[])
-    client.feeders = {"feeder-a": {"id": "feeder-a", "name": "Fixture feeder"}}
+    client.feeders = {}
+    client.feed = AsyncMock(
+        return_value=Feed(
+            {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+        )
+    )
     coordinator = BirdBuddyDataUpdateCoordinator(hass, client, entry)
+    coordinator.intake = MagicMock(initialized=True, dead_letter_count=0)
+    coordinator.intake.async_dispatch = AsyncMock()
+    coordinator.intake.async_close = AsyncMock()
+    coordinator._accept_pending = AsyncMock()
     error = AuthenticationFailedError() if auth_error else NoResponseError()
-    if stage == "feed_events":
-        coordinator.first_update = False
-        coordinator._fire_new_feed_item_events = AsyncMock(side_effect=error)
-        operation = coordinator._async_update_data
-    elif stage == "visitors":
-        coordinator.visitors["feeder-a"] = MagicMock(
-            async_update=AsyncMock(side_effect=error)
-        )
-        operation = coordinator._async_update_data
+    if stage == "visitor_snapshot":
+        client.feed.side_effect = error
     else:
-        client._make_request = AsyncMock(side_effect=error)
-        operation = coordinator._fetch_new_postcard_media_map
-
+        coordinator._accept_pending.side_effect = error
     if auth_error:
-        expected = (
-            AuthenticationFailedError
-            if stage == "postcard_media"
-            else ConfigEntryAuthFailed
-        )
-        with pytest.raises(expected):
-            await operation()
+        with pytest.raises(ConfigEntryAuthFailed):
+            await coordinator._async_update_data()
     else:
-        result = await operation()
-        assert result == ({} if stage == "postcard_media" else client)
+        assert await coordinator._async_update_data() is client
+        assert coordinator.last_update_timestamp is not None
+        assert coordinator.feed_error_type == "NoResponseError"
+    await coordinator.async_shutdown()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from importlib.metadata import requires, version
+from importlib.metadata import distribution, requires, version
 import json
 from pathlib import Path
 import sys
@@ -49,6 +49,19 @@ def test_runtime_requirements_match_manifest() -> None:
     }
     assert actual == expected
     assert "homeassistant" not in actual
+
+
+def test_installed_client_matches_the_immutable_runtime_pin() -> None:
+    """Source overrides/editable installs must not masquerade as release validation."""
+    requirement = _requirements("requirements.txt")["pybirdbuddy"]
+    assert requirement.url is not None
+    expected = requirement.url.rsplit("@", 1)[1]
+    assert len(expected) == 40
+    provenance = distribution("pybirdbuddy").read_text("direct_url.json")
+    assert provenance is not None, "Install the manifest's exact git client requirement"
+    installed = json.loads(provenance)
+    assert installed.get("vcs_info", {}).get("commit_id") == expected
+    assert not installed.get("dir_info", {}).get("editable", False)
 
 
 def test_full_suite_uses_an_exact_harness_runtime_pair() -> None:

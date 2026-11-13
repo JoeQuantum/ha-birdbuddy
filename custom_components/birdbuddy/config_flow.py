@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from birdbuddy.client import BirdBuddy
-from birdbuddy.exceptions import AuthenticationFailedError
+from birdbuddy.exceptions import (
+    AuthenticationFailedError,
+    SocialAuthenticationRequiredError,
+)
 from typing import Any
 
 import voluptuous as vol
@@ -132,6 +135,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._client = client
         try:
             result = await client.refresh()
+        except SocialAuthenticationRequiredError:
+            self._client = None
+            errors["base"] = "social_auth_unsupported"
+            return None
         except AuthenticationFailedError:
             self._client = None
             errors["base"] = "invalid_auth"

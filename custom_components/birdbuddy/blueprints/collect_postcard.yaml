@@ -1,56 +1,106 @@
 blueprint:
-  name: Collect Bird Buddy Postcard
-  description: Collect a Bird Buddy Postcard when a bird visits the feeder.
+  name: Collect Bird Buddy Postcard (current API)
+  description: >-
+    Queue new live postcards from one account and feeder. Review Bird Buddy's
+    server selection policy before enabling collection. Legacy recognized-only,
+    best-guess, mystery and numeric confidence rules are not equivalent.
+    This automation does nothing until you select the server policy below.
+    Identify and sharing are separate choices, both off by default.
+    The queue is finite: excess events produce a warning in Home Assistant logs
+    and are not automatically retried. Failed or uncertain collection attempts
+    remain visible in automation traces; inspect their state before retrying.
   domain: automation
   source_url: https://github.com/JoeQuantum/ha-birdbuddy/blob/main/custom_components/birdbuddy/blueprints/collect_postcard.yaml
   author: Joe Hansche (original), JoeQuantum (fork)
   input:
+    config_entry_id:
+      name: Bird Buddy account
+      description: Select the account through which this feeder's postcards arrive.
+      selector:
+        config_entry:
+          integration: birdbuddy
     feeder_device:
       name: Bird Buddy device
+      description: Select the feeder for this account. Shared feeders need an explicit account.
       selector:
         device:
           integration: birdbuddy
-    collect_strategy:
-      name: Collection strategy
-      default: best_guess
+    selection_policy:
+      name: Collection policy
+      description: >-
+        Explicitly accept Bird Buddy's current server selection. This may differ
+        from an older strategy or confidence threshold. Review the species and
+        mystery behavior before changing this choice.
+      default: review_required
       selector:
         select:
           options:
-            - value: recognized
-              label: Only confidently recognized species
-            - value: best_guess
-              label: Select the best-guess species
-            - value: mystery
-              label: Best guess, or save as a mystery visitor
+            - value: review_required
+              label: Disabled — review the policy first
+            - value: server
+              label: Use Bird Buddy's server selection
           mode: dropdown
-    best_guess_confidence:
-      name: Best-guess confidence
-      description: Minimum confidence by the BB AI to accept a sighting.
+    identify:
+      name: Identify before collection
+      description: Explicitly run Bird Buddy inference before collecting; this changes analysis state.
+      default: false
+      selector:
+        boolean: {}
+    share:
+      name: Request community sharing
+      description: Ask to share collected media. Sharing intent is not a guarantee of public visibility.
+      default: false
+      selector:
+        boolean: {}
+    queue_limit:
+      name: Maximum queued and running postcards
+      description: >-
+        Bound the automation queue. Overflow is logged as a warning and is not
+        replayed automatically. Check traces and logs before increasing this limit.
       default: 20
       selector:
         number:
           min: 1
           max: 100
-          unit_of_measurement: "%"
-    share_media:
-      name: Share Media?
-      default: true
-      selector:
-        boolean: {}
+          step: 1
+          mode: box
 
-mode: single
+mode: queued
+max: !input queue_limit
+max_exceeded: warning
+variables:
+  selected_feeder_device: !input feeder_device
+  selected_policy: !input selection_policy
 trigger:
-  platform: device
-  domain: birdbuddy
-  device_id: !input feeder_device
-  type: new_postcard
+  - platform: event
+    event_type: birdbuddy_new_postcard
+    event_data:
+      schema_version: 1
+      source: live
+      kind: FeedItemNewPostcard
+      config_entry_id: !input config_entry_id
+condition:
+  - condition: template
+    value_template: >-
+      {% set event = trigger.event.data %}
+      {{ selected_policy == 'server'
+         and event.get('event_id') is string and event.get('event_id') | length > 0
+         and event.get('postcard_id') is string and event.get('postcard_id') | length > 0
+         and event.get('account_id') is string and event.get('account_id') | length > 0
+         and event.get('feeder_id') is string and event.get('feeder_id') | length > 0
+         and ('birdbuddy', event.feeder_id) in
+             (device_attr(selected_feeder_device, 'identifiers') | default([], true)) }}
 action:
-  - alias: Collect a Postcard
+  - variables:
+      birdbuddy_event_id: "{{ trigger.event.data.event_id }}"
+  - alias: Collect with the reviewed server policy
     service: birdbuddy.collect_postcard
-    data_template:
-      strategy: !input collect_strategy
-      best_guess_confidence: !input best_guess_confidence
-      share_media: !input share_media
-      postcard: "{{ trigger.event.data.postcard }}"
-      sighting: "{{ trigger.event.data.sighting }}"
-    enabled: true
+    data:
+      config_entry_id: !input config_entry_id
+      account_id: "{{ trigger.event.data.account_id }}"
+      device_id: !input feeder_device
+      feeder_id: "{{ trigger.event.data.feeder_id }}"
+      postcard_id: "{{ trigger.event.data.postcard_id }}"
+      selection_policy: !input selection_policy
+      identify: !input identify
+      share: !input share

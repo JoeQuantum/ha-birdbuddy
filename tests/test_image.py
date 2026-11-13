@@ -11,6 +11,7 @@ import pytest
 from homeassistant.components.image import ImageEntity
 from homeassistant.helpers.typing import UndefinedType
 
+from custom_components.birdbuddy.device import BirdBuddyDevice
 from custom_components.birdbuddy.image import BirdBuddyRecentVisitorImageEntity
 
 IMAGE_TIME = datetime(2026, 5, 30, 12, tzinfo=timezone.utc)
@@ -29,7 +30,7 @@ def _make_image_entity(
     entity._attr_entity_picture = None
     entity._cached_image = None
     entity.coordinator = coordinator or MagicMock()
-    entity.feeder = SimpleNamespace(id=feeder_id, name="Backyard")
+    entity.feeder = BirdBuddyDevice({"id": feeder_id, "name": "Backyard"})
     return entity
 
 

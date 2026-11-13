@@ -13,7 +13,9 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
+from .control import async_run_control
 from .coordinator import BirdBuddyDataUpdateCoordinator
+from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
 from .entity import BirdBuddyMixin
 
@@ -24,12 +26,22 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up entities from a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    feeders = coordinator.feeders.values()
-    entities = []
-    entities.extend([BirdBuddyAudioSwitch(f, coordinator) for f in feeders])
-    entities.extend([BirdBuddyOffGridSwitch(f, coordinator) for f in feeders])
-    async_add_entities(entities)
+    coordinator: BirdBuddyDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_register_feeder_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        [
+            lambda feeder: (
+                BirdBuddyAudioSwitch(feeder, coordinator)
+                if feeder.is_owner and feeder.supports_audio is not False
+                else None
+            ),
+            lambda feeder: (
+                BirdBuddyOffGridSwitch(feeder, coordinator) if feeder.is_owner else None
+            ),
+        ],
+    )
 
 
 class BirdBuddyOffGridSwitch(BirdBuddyMixin, SwitchEntity):
@@ -55,19 +67,17 @@ class BirdBuddyOffGridSwitch(BirdBuddyMixin, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return self.feeder.is_off_grid
+        return self.feeder.is_off_grid if self.feeder.is_owner else None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        result = await self.coordinator.client.toggle_off_grid(self.feeder, True)
-        if result:
-            self.feeder.update(result)
-            self.coordinator.async_update_listeners()
+        await async_run_control(
+            self, lambda: self.coordinator.client.toggle_off_grid(self.feeder, True)
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        result = await self.coordinator.client.toggle_off_grid(self.feeder, False)
-        if result:
-            self.feeder.update(result)
-            self.coordinator.async_update_listeners()
+        await async_run_control(
+            self, lambda: self.coordinator.client.toggle_off_grid(self.feeder, False)
+        )
 
 
 class BirdBuddyAudioSwitch(BirdBuddyMixin, SwitchEntity):
@@ -91,24 +101,32 @@ class BirdBuddyAudioSwitch(BirdBuddyMixin, SwitchEntity):
 
     @property
     def available(self) -> bool:
-        return super().available and self.feeder.is_owner
+        return (
+            super().available
+            and self.feeder.is_owner
+            and self.feeder.supports_audio is not False
+        )
 
     @property
     def is_on(self) -> bool | None:
-        return self.feeder.is_audio_enabled
+        return (
+            self.feeder.is_audio_enabled
+            if self.feeder.is_owner and self.feeder.supports_audio is not False
+            else None
+        )
 
     @property
     def icon(self) -> str | None:
         return "mdi:microphone" if self.is_on else "mdi:microphone-off"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        result = await self.coordinator.client.toggle_audio_enabled(self.feeder, True)
-        if result:
-            self.feeder.update(result)
-            self.coordinator.async_update_listeners()
+        await async_run_control(
+            self,
+            lambda: self.coordinator.client.toggle_audio_enabled(self.feeder, True),
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        result = await self.coordinator.client.toggle_audio_enabled(self.feeder, False)
-        if result:
-            self.feeder.update(result)
-            self.coordinator.async_update_listeners()
+        await async_run_control(
+            self,
+            lambda: self.coordinator.client.toggle_audio_enabled(self.feeder, False),
+        )

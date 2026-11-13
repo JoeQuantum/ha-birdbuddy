@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
 from .entity import BirdBuddyMixin
 from .const import DOMAIN
@@ -21,9 +22,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up entities from a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    feeders = coordinator.feeders.values()
-    async_add_entities(BirdBuddyChargingEntity(f, coordinator) for f in feeders)
+    coordinator: BirdBuddyDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_register_feeder_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        [lambda feeder: BirdBuddyChargingEntity(feeder, coordinator)],
+    )
 
 
 class BirdBuddyChargingEntity(BirdBuddyMixin, BinarySensorEntity):
@@ -43,6 +48,6 @@ class BirdBuddyChargingEntity(BirdBuddyMixin, BinarySensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-charging"
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         """Return the state of the sensor."""
         return self.feeder.battery.is_charging

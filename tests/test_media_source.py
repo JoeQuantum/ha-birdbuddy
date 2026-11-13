@@ -2,7 +2,7 @@
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from birdbuddy.media import Collection, Media
@@ -66,7 +66,7 @@ def _account(hass, account_id="account-a", *, loaded=True, url=URL):
         ),
         collection=AsyncMock(return_value={"media-shared-id": _media(url)}),
     )
-    coordinator = SimpleNamespace(client=client)
+    coordinator = SimpleNamespace(client=client, verify_account_identity=MagicMock())
     if loaded:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     return entry, coordinator
@@ -273,5 +273,21 @@ async def test_not_loaded_entry_with_stale_runtime_data_is_rejected(hass):
 async def test_unsupported_or_malformed_urls_are_unresolvable(hass, url):
     source = BirdBuddyMediaSource(hass)
     entry, _ = _account(hass, url=url)
+    with pytest.raises(Unresolvable):
+        await source.async_resolve_media(_item(hass, entry, media=True))
+
+
+async def test_unknown_media_kind_is_retained_but_not_playable(hass):
+    source = BirdBuddyMediaSource(hass)
+    entry, coordinator = _account(hass)
+    coordinator.client.collection.return_value = {
+        "media-shared-id": _media(kind="MediaAudio")
+    }
+    result = await source.async_browse_media(_item(hass, entry, collection=True))
+    assert result.children is not None
+    assert len(result.children) == 1
+    assert result.children[0].media_class is MediaClass.URL
+    assert not result.children[0].can_play
+    assert result.children[0].media_content_type == "application/octet-stream"
     with pytest.raises(Unresolvable):
         await source.async_resolve_media(_item(hass, entry, media=True))

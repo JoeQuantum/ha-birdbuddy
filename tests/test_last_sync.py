@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
+
+from birdbuddy.feed import Feed
+from birdbuddy.user import BirdBuddyUser
+from tests.ha_compat import common as ha_test_common
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -13,36 +16,47 @@ from custom_components.birdbuddy.coordinator import BirdBuddyDataUpdateCoordinat
 from custom_components.birdbuddy.sensor import BirdBuddyLastSyncEntity
 
 
-def _coordinator() -> BirdBuddyDataUpdateCoordinator:
-    """A coordinator wired just enough to run one _async_update_data."""
-    c = object.__new__(BirdBuddyDataUpdateCoordinator)
-    c.client = MagicMock()
-    c.client.refresh = AsyncMock(return_value=True)
-    c.client.feeders = {"f1": {"id": "f1", "name": "Backyard"}}
-    c.hass = MagicMock()
-    c.feeders = {}
-    c.visitors = {}
-    c.first_update = True
-    c.last_update_timestamp = None
+def _coordinator(hass) -> BirdBuddyDataUpdateCoordinator:
+    entry = ha_test_common.MockConfigEntry(
+        domain="birdbuddy", data={"account_id": "account-a"}
+    )
+    client = MagicMock()
+    client.refresh = AsyncMock(return_value=True)
+    client.user = BirdBuddyUser({"id": "account-a"})
+    client.feeders = {}
+    client.feed = AsyncMock(
+        return_value=Feed(
+            {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+        )
+    )
+    c = BirdBuddyDataUpdateCoordinator(hass, client, entry)
+    c.intake = MagicMock(initialized=True, dead_letter_count=0)
+    c.intake.async_dispatch = AsyncMock()
+    c.intake.async_close = AsyncMock()
+    c._accept_pending = AsyncMock()
     return c
 
 
-def test_last_update_timestamp_set_on_success() -> None:
-    """A successful poll stamps a tz-aware UTC timestamp."""
-    c = _coordinator()
-    result = asyncio.run(c._async_update_data())
+async def test_last_update_timestamp_set_on_success(hass) -> None:
+    """A successful telemetry poll stamps a tz-aware UTC timestamp."""
+    c = _coordinator(hass)
+    result = await c._async_update_data()
     assert result is c.client
     assert isinstance(c.last_update_timestamp, datetime)
     assert c.last_update_timestamp.tzinfo is not None
+    await c.async_shutdown()
 
 
-def test_last_update_timestamp_unchanged_on_failure() -> None:
-    """A failed poll must not advance the timestamp."""
-    c = _coordinator()
+async def test_last_update_timestamp_unchanged_on_failure(hass) -> None:
+    """A failed telemetry poll must preserve the previous successful timestamp."""
+    c = _coordinator(hass)
+    previous = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    c.last_update_timestamp = previous
     c.client.refresh = AsyncMock(side_effect=RuntimeError("boom"))
     with pytest.raises(UpdateFailed):
-        asyncio.run(c._async_update_data())
-    assert c.last_update_timestamp is None
+        await c._async_update_data()
+    assert c.last_update_timestamp is previous
+    await c.async_shutdown()
 
 
 def test_sensor_reports_coordinator_timestamp() -> None:
