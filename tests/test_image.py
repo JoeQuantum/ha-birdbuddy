@@ -101,8 +101,10 @@ def test_handle_coordinator_update_noop_without_url(
 
 
 @pytest.mark.parametrize("url", [object.__new__(ImageEntity).image_url, None, ""])
-def test_update_url_noop_without_media_or_url(url: str | None | UndefinedType) -> None:
-    """A visitor without media must be safe before any URL is populated."""
+def test_update_url_clears_without_media_or_url(
+    url: str | None | UndefinedType,
+) -> None:
+    """A visitor without media explicitly clears all image state."""
     entity = _make_image_entity()
     entity._attr_image_url = url
 
@@ -110,7 +112,7 @@ def test_update_url_noop_without_media_or_url(url: str | None | UndefinedType) -
         entity._update_url(None)
 
     mock_expired.assert_not_called()
-    assert entity._attr_image_url is url
+    assert entity._attr_image_url is None
 
 
 def test_update_url_clears_expired_url_without_new_media() -> None:
@@ -125,7 +127,7 @@ def test_update_url_clears_expired_url_without_new_media() -> None:
     ) as mock_expired:
         entity._update_url(None)
 
-    mock_expired.assert_called_once_with("https://cdn.example.com/bird.jpg?Expires=1")
+    mock_expired.assert_not_called()
     assert entity._attr_image_url is None
     assert entity._attr_image_last_updated is None
     assert entity._attr_entity_picture is None
@@ -155,7 +157,7 @@ def test_async_added_to_hass_seeds_from_existing_coordinator_state() -> None:
 
     assert entity._attr_image_url == fresh_url
     assert entity._attr_entity_picture == fresh_url
-    assert entity._attr_image_last_updated == "2026-05-30T12:00:00"
+    assert entity._attr_image_last_updated == IMAGE_TIME
     coordinator.add_visitor_listener.assert_called_once()
 
 
@@ -181,10 +183,9 @@ def test_async_added_to_hass_handles_missing_visitor_state() -> None:
     coordinator.add_visitor_listener.assert_called_once()
 
 
-def test_async_added_to_hass_skips_seeding_when_media_is_none() -> None:
+def test_async_added_to_hass_clears_when_media_is_none() -> None:
     """RecentVisitors may exist but have no media yet (e.g. listening but
-    _update_latest_visitor hasn't completed). Must not call _update_url with
-    None."""
+    _update_latest_visitor hasn't completed). Explicitly clear the image."""
     coordinator = MagicMock()
     coordinator.visitors = {"f1": SimpleNamespace(latest_media=None)}
     coordinator.add_visitor_listener.return_value = lambda: None
@@ -201,5 +202,5 @@ def test_async_added_to_hass_skips_seeding_when_media_is_none() -> None:
     ):
         asyncio.run(entity.async_added_to_hass())
 
-    mock_update.assert_not_called()
+    mock_update.assert_called_once_with(None)
     coordinator.add_visitor_listener.assert_called_once()
