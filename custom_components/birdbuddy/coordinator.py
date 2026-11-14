@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import timedelta
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from birdbuddy.client import BirdBuddy
 from birdbuddy.exceptions import AuthenticationFailedError
@@ -50,6 +50,10 @@ from .postcard_policy import PostcardCollectionRequest
 from .repairs import check_legacy_listeners
 from .visitors import RecentVisitors, VisitorCallback
 
+if TYPE_CHECKING:
+    from birdbuddy.insights import AccountInsights
+
+
 _VISITOR_KINDS = {
     "FeedItemNewPostcard",
     "FeedItemCollectedPostcard",
@@ -80,6 +84,7 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
         self.visitors: dict[str, RecentVisitors] = {}
         self.account_id = ""
         self.intake: DurableIntake | None = None
+        self.account_insights: AccountInsights | None = None
         self.last_update_timestamp = None
         self.last_feed_success = None
         self.feed_error_type: str | None = None
@@ -153,8 +158,12 @@ class BirdBuddyDataUpdateCoordinator(DataUpdateCoordinator[BirdBuddy]):
             await asyncio.gather(*tasks, return_exceptions=True)
         # Action cancellation can still journal an unknown outcome above. Close
         # only once that cleanup has completed, then reject any late old writer.
-        if self.intake is not None:
-            await self.intake.async_close()
+        try:
+            if self.account_insights is not None:
+                await self.account_insights.async_close()
+        finally:
+            if self.intake is not None:
+                await self.intake.async_close()
 
     def _verify_identity(self) -> None:
         """Verify account before restoring its cursor or emitting account data."""

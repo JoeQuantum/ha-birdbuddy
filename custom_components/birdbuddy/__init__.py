@@ -43,6 +43,7 @@ from .coordinator import BirdBuddyDataUpdateCoordinator
 from .hass_util import _resolve_coordinator
 from .events import async_get_postcard_details
 from .intakestore import IntakeError
+from .insights_service import setup_insights_service
 from .postcard_policy import UnsupportedPostcardPolicy, validate_collection_request
 from .repairs import report_legacy_aliases, report_legacy_postcard_contract
 
@@ -160,6 +161,7 @@ async def async_remove_config_entry_device(
 
 def _setup_services(hass: HomeAssistant) -> None:
     """Register explicit account actions and a complete read-only detail response."""
+    setup_insights_service(hass)
 
     def resolve(data) -> BirdBuddyDataUpdateCoordinator:
         try:
