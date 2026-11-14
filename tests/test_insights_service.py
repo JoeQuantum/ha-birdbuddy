@@ -1,7 +1,7 @@
 """Optional service routing and lifecycle; no live account requests or mutations."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from birdbuddy.exceptions import AuthenticationFailedError, GraphqlError
@@ -381,8 +381,9 @@ async def test_sdk_errors_are_safe_and_authentication_starts_reauth(
         assert reauth.call_count == int(isinstance(error, AuthenticationFailedError))
 
 
+@pytest.mark.parametrize("intraday", [False, True])
 async def test_report_range_error_preserves_other_reads_and_account_health(
-    hass, accounts_factory
+    hass, accounts_factory, intraday
 ):
     """A report error is safe, uncached and independent of polling and other ranges."""
     account = accounts_factory()
@@ -394,6 +395,15 @@ async def test_report_range_error_preserves_other_reads_and_account_health(
         "end": "2026-02-01T00:00:00+00:00",
     }
     bad = good | {"start": "2025-12-01T00:00:00+00:00", "end": good["start"]}
+    if intraday:
+        good |= {
+            "start": "2034-06-02T05:15:00.123456+02:00",
+            "end": "2034-06-02T06:45:59.999000+02:00",
+        }
+        bad = good | {
+            "start": "2034-06-02T06:43:59.999000+02:00",
+            "end": "2034-06-02T06:44:59.999000+02:00",
+        }
 
     async def read(*, query, variables):
         if variables["start"] == bad["start"]:
@@ -438,6 +448,64 @@ async def test_report_range_error_preserves_other_reads_and_account_health(
     assert account.coordinator.last_update_success
     assert account.entry.state is ConfigEntryState.LOADED
     assert not account.coordinator._active_work
+    account.assert_no_mutations()
+
+
+@pytest.mark.parametrize("offset", [timezone.utc, timezone(timedelta(hours=-7))])
+async def test_report_service_preserves_range_precision_and_summary_hour_metadata(
+    hass, accounts_factory, offset
+):
+    account = accounts_factory()
+    await account.poll()
+    start = datetime(2034, 6, 2, 3, 15, 0, 123456, timezone.utc).astimezone(offset)
+    end = start + timedelta(minutes=90, microseconds=875544)
+    fetched = datetime(2034, 7, 10, tzinfo=timezone.utc)
+    summary_hour = "2034-07-10T09:00:00Z"
+    period = {
+        "startDate": start.astimezone(timezone.utc).isoformat(),
+        "endDate": end.astimezone(timezone.utc).isoformat(),
+    }
+    account.client._make_request.side_effect = None
+    account.client._make_request.return_value = {
+        "me": {"user": {"id": "account-a"}},
+        "userFeederReport": {
+            "userId": "account-a",
+            "feederIds": ["feeder-a"],
+            "reportLabel": "Synthetic interval",
+            "reportPeriod": period,
+            "visitAggregateMetrics": {
+                "totalNumberOfVisits": 7,
+                "numberOfUniqueSpecies": 2,
+                "busiestHourOfDay": summary_hour,
+                "speciesVisitSummaries": [],
+            },
+        },
+    }
+    account.coordinator.account_insights = AccountInsights(
+        account.client, now=lambda: fetched
+    )
+    result = await call(
+        hass,
+        {
+            "kind": "feeder_report",
+            "feeder_id": "feeder-a",
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+        },
+    )
+    variables = account.client._make_request.call_args.kwargs["variables"]
+    assert variables == {
+        "userId": "account-a",
+        "feederId": "feeder-a",
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+    }
+    assert result["complete"] is True
+    assert result["data"]["reportPeriod"] == period
+    assert result["data"]["visitAggregateMetrics"]["busiestHourOfDay"] == summary_hour
+    assert result["fetched_at"] == fetched.isoformat()
+    assert result["config_entry_id"] == account.entry.entry_id
+    account.client._make_request.assert_awaited_once()
     account.assert_no_mutations()
 
 

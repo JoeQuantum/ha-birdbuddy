@@ -25,6 +25,13 @@ string truthiness. A feeder-report server error is isolated to that request:
 it is not cached, converted to zero visits, substituted with another period, or
 treated as expired authentication. Regression tests cover these contracts.
 
+Report requests retain sub-day instants, offsets and fractional seconds. A failed
+short interval remains distinct from a successful cached report for the same day.
+Summary-hour values are preserved even when their dates fall outside the report
+period; they do not become visit or freshness timestamps. Synthetic regressions
+cover this behavior through the SDK and HA service. Vendor empty-period semantics,
+boundary inclusion and retention remain unverified.
+
 There are no new cloud mutations, periodic jobs, entities or automatic collection
 rules. Existing event/action compatibility aliases remain available through 0.3,
 with removal planned for 0.4. Smart Energy writes, camera controls, push delivery

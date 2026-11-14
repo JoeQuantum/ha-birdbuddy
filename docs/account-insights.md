@@ -49,6 +49,24 @@ service raises a safe error instead of returning another period or fabricated
 counts. Failed reads are not cached, and successful reports for other periods
 remain usable. Only authentication failures start reauthentication.
 
+Explicit ranges preserve timezone-aware instants and fractional seconds; the
+integration does not round them to calendar days or widen a failing interval.
+A short interval can fail even when a wider report for the same day succeeds.
+Equivalent UTC-offset encodings refer to the same instants, but the vendor's
+exact boundary inclusion and minimum supported duration are not established.
+Echoed `reportPeriod` metadata alone does not verify timestamp-level filtering.
+Empty-aggregate handling is a possible explanation for some server errors, not
+a documented zero-visits result or a reason to suppress other failures.
+
+`visitAggregateMetrics.busiestHourOfDay` is vendor summary-hour metadata. Although
+the schema uses `DateTime`, its date can be outside the report's period. Preserve
+the returned value; do not use it as a visit date, `last_seen`, physical freshness,
+or evidence of a future visit. It is separate from both `reportPeriod` and
+`fetched_at`. The date anchoring and timezone semantics are not guaranteed, and
+the related species-summary `peakHour` field has not been independently verified.
+`complete: true` means the selected fields are present, not that their temporal
+meaning has been independently established.
+
 The response includes `schema_version: 1`, `config_entry_id`, `account_id`,
 `resource`, `status`, `data`, `complete`, `limit`, `pagination`, explicit paths for
 truncated/missing/unknown fields, `fetched_at`, and `cache_ttl_seconds`. Known missing
