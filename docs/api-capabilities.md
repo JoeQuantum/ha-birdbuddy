@@ -49,8 +49,9 @@ baseline; the implementation status below is the current development decision.
   A first-class archive subsystem is deferred until a concrete unmet need exists.
 - **Optional reads:** no additional background requests or unbounded entity
   creation. The [account insights service](account-insights.md) implements eight
-  selected resources with bounded caches. Tests validate schema contracts and
-  synthetic results; live account and entitlement behavior is still unverified.
+  selected resources with bounded caches. Repository tests validate schema
+  contracts and synthetic results; account access, entitlement and availability
+  require separately scoped evidence and are not universal capability guarantees.
 - **Account canary:** no live authentication, cloud mutation or physical hardware
   behavior is inferred from fixture tests. Release records must retain this limit.
 

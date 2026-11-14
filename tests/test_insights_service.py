@@ -381,6 +381,66 @@ async def test_sdk_errors_are_safe_and_authentication_starts_reauth(
         assert reauth.call_count == int(isinstance(error, AuthenticationFailedError))
 
 
+async def test_report_range_error_preserves_other_reads_and_account_health(
+    hass, accounts_factory
+):
+    """A report error is safe, uncached and independent of polling and other ranges."""
+    account = accounts_factory()
+    await account.poll()
+    good = {
+        "kind": "feeder_report",
+        "feeder_id": "feeder-a",
+        "start": "2026-01-01T00:00:00+00:00",
+        "end": "2026-02-01T00:00:00+00:00",
+    }
+    bad = good | {"start": "2025-12-01T00:00:00+00:00", "end": good["start"]}
+
+    async def read(*, query, variables):
+        if variables["start"] == bad["start"]:
+            raise GraphqlError(
+                {
+                    "message": "synthetic-private-server-detail",
+                    "extensions": {"code": "INTERNAL_SERVER_ERROR"},
+                }
+            )
+        return {
+            "me": {"user": {"id": "account-a"}},
+            "userFeederReport": {
+                "userId": "account-a",
+                "feederIds": ["feeder-a"],
+                "reportLabel": "Synthetic period",
+                "reportPeriod": {
+                    "startDate": variables["start"],
+                    "endDate": variables["end"],
+                },
+                "visitAggregateMetrics": {
+                    "totalNumberOfVisits": 7,
+                    "numberOfUniqueSpecies": 2,
+                    "busiestHourOfDay": "2026-01-02T12:00:00Z",
+                    "speciesVisitSummaries": [],
+                },
+            },
+        }
+
+    account.client._make_request.side_effect = read
+    with patch.object(type(account.entry), "async_start_reauth") as reauth:
+        cached = await call(hass, good)
+        for attempt in range(2):
+            with pytest.raises(HomeAssistantError, match="GraphqlError") as error:
+                await call(hass, bad)
+            assert "synthetic-private-server-detail" not in str(error.value)
+            assert error.value.__suppress_context__
+            assert account.client._make_request.await_count == attempt + 2
+            assert await call(hass, good) == cached
+            assert account.client._make_request.await_count == attempt + 2
+        reauth.assert_not_called()
+    await account.poll()
+    assert account.coordinator.last_update_success
+    assert account.entry.state is ConfigEntryState.LOADED
+    assert not account.coordinator._active_work
+    account.assert_no_mutations()
+
+
 async def test_shutdown_closes_the_adapter_and_cancels_its_shielded_read(
     hass, accounts_factory
 ):

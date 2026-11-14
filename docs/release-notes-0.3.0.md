@@ -20,15 +20,21 @@ their authoritative periods; unavailable recaps do not become fabricated zero
 counts. Remote connections remain account metadata and never create physical
 devices.
 
+Snapshot capability is preserved as an enum rather than interpreted through
+string truthiness. A feeder-report server error is isolated to that request:
+it is not cached, converted to zero visits, substituted with another period, or
+treated as expired authentication. Regression tests cover these contracts.
+
 There are no new cloud mutations, periodic jobs, entities or automatic collection
 rules. Existing event/action compatibility aliases remain available through 0.3,
 with removal planned for 0.4. Smart Energy writes, camera controls, push delivery
 and camera sessions retain their [evidence gates](api-capabilities.md).
 
-The implementation is validated against the schema captured on 2026-11-13 and
-synthetic fixtures. This candidate has no live account, entitlement, hardware or
-HACS-installation validation. It remains a development candidate pending that
-external validation. The manifest records the exact immutable companion revision.
+Repository validation uses the schema captured on 2026-11-13 and synthetic
+fixtures. Standalone API evidence, where available, is separate from real HA
+installation, lifecycle and physical-device validation. Those release gates
+remain open; this is a development candidate. The manifest records the exact
+immutable companion revision.
 The workspace release evidence records the final test counts, archive hash and
 extracted-package checks; these records do not claim production deployment.
 

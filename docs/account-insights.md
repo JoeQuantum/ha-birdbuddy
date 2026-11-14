@@ -42,6 +42,13 @@ end later than start and at most 366 days apart. That local limit does not promi
 historical retention. The weekly/yearly API does not accept a week/year argument.
 Always use the period returned by the vendor.
 
+Omitting the range asks the vendor to select a period; it does not request a
+guaranteed rolling or lifetime report. A server error for one feeder or period
+does not establish zero visits, an offline feeder, or a retention cutoff. The
+service raises a safe error instead of returning another period or fabricated
+counts. Failed reads are not cached, and successful reports for other periods
+remain usable. Only authentication failures start reauthentication.
+
 The response includes `schema_version: 1`, `config_entry_id`, `account_id`,
 `resource`, `status`, `data`, `complete`, `limit`, `pagination`, explicit paths for
 truncated/missing/unknown fields, `fetched_at`, and `cache_ttl_seconds`. Known missing
@@ -58,6 +65,18 @@ video quality and camera field of view do not enable controls. Remote connection
 are account metadata, never owned physical devices. Their expiry is recomputed
 when cached data is returned, and unknown expiry remains unknown. Account features
 can be requested with zero physical feeders if the vendor permits them.
+
+`supportsLivestreamSnapshot` is an enum: `SUPPORTED`, `UNAVAILABLE`, or
+`REQUIRES_FIRMWARE_UPDATE`. It is not a Boolean; testing whether its string is
+nonempty would incorrectly treat every value as support. Unknown future values
+are preserved without claiming support. These metadata reads do not start a
+snapshot or camera session.
+
+Cloud polling success does not prove fresh physical telemetry. Last Sync records
+the successful account poll; a feeder's `presenceUpdatedAt` is a separate vendor
+timestamp and is not guaranteed to track every metric or state change. The
+incubating temperature and food sensors remain disabled by default; metadata
+availability alone does not establish measurement accuracy.
 
 One SDK adapter is created lazily per loaded account. Its bounded cache and
 coalesced reads avoid duplicate requests. No force-refresh input bypasses the
@@ -97,7 +116,9 @@ this ID comparison. The filter only controls this automation's notification; it
 does not discard a postcard, change global ignored-species preferences or promise
 that the vendor recognizes every squirrel or other visitor correctly.
 
-The queries validate against the schema captured on 2026-11-13. The implementation
-is tested with synthetic fixtures and mocked requests. This does not verify live
-account access, entitlement, actual hardware support, report retention, or current
-availability. No authenticated live request or mutation was used for these tests.
+The queries validate against the schema captured on 2026-11-13. Repository tests
+use synthetic fixtures and mocked requests, including report failures and
+capability enums. These offline checks do not establish account entitlement,
+physical hardware behavior, report retention, or current availability. Standalone
+API checks and live HA installation/lifecycle checks are separate validation
+steps; account-specific evidence belongs in private release records.
