@@ -7,15 +7,26 @@
           "email": "[%key:common::config_flow::data::email%]",
           "password": "[%key:common::config_flow::data::password%]"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Bird Buddy",
+        "description": "Enter credentials for the same Bird Buddy account.",
+        "data": {
+          "email": "[%key:common::config_flow::data::email%]",
+          "password": "[%key:common::config_flow::data::password%]"
+        }
       }
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]"
+      "unknown": "[%key:common::config_flow::error::unknown%]",
+      "wrong_account": "These credentials belong to a different Bird Buddy account.",
+      "social_auth_unsupported": "This account requires social sign-in. Social sign-in is not supported by this integration."
     },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Reauthentication was successful"
     }
   },
   "options": {
@@ -26,7 +37,7 @@
           "polling_interval": "Polling interval (minutes)"
         },
         "data_description": {
-          "polling_interval": "How often to poll Bird Buddy for new data, in minutes (1-20). Default is 10."
+          "polling_interval": "Account polling interval in minutes (1–20), default 10. Postcard processing can fail independently of feeder telemetry."
         }
       }
     }
@@ -87,6 +98,20 @@
   "device_automation": {
     "trigger_type": {
       "new_postcard": "A new postcard is ready"
+    }
+  },
+  "issues": {
+    "legacy_postcard_contract": {
+      "title": "Update Bird Buddy postcard automations",
+      "description": "The report-token postcard workflow is no longer emitted. Use birdbuddy_new_postcard and postcard_id. Legacy strategy, confidence and sighting inputs have no verified equivalent; review the collection policy and explicitly choose selection_policy: server before enabling collection. Your automations have not been rewritten."
+    },
+    "deprecated_postcard_aliases": {
+      "title": "Update Bird Buddy action field names",
+      "description": "Replace postcard.id with postcard_id and share_media with share. These equivalent aliases remain available through versions 0.2 and 0.3 and are scheduled for removal in {removal_version}. Keep selection_policy: server explicit."
+    },
+    "postcard_intake": {
+      "title": "Bird Buddy postcard delivery needs attention",
+      "description": "Postcard processing reported {error_type}. Feeder telemetry can continue. Check diagnostics and the durable intake documentation before retrying failed events or uncertain collection actions. No uncertain action is automatically repeated."
     }
   }
 }

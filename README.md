@@ -1,153 +1,144 @@
 # Bird Buddy — Home Assistant Integration
 
-A community fork of [`jhansche/ha-birdbuddy`](https://github.com/jhansche/ha-birdbuddy) by [@JoeQuantum](https://github.com/JoeQuantum), targeting more entities, better reliability, and a faster path for fixes and modern Home Assistant patterns.
+A community fork of [jhansche/ha-birdbuddy](https://github.com/jhansche/ha-birdbuddy),
+maintained by [@JoeQuantum](https://github.com/JoeQuantum). Original integration
+credit belongs to [Joe Hansche](https://github.com/jhansche).
 
-This component uses the [`pybirdbuddy`](https://github.com/JoeQuantum/pybirdbuddy) library (also a fork; pinned to the `v0.0.25` tag).
+This integration uses the [forked pybirdbuddy client](https://github.com/JoeQuantum/pybirdbuddy).
+The runtime dependency is pinned to an immutable commit in
+[manifest.json](custom_components/birdbuddy/manifest.json); development tests
+exercise the same client contract.
 
-## Relation to upstream
+## Compatibility and upgrading
 
-This is a domain-compatible community fork of [`jhansche/ha-birdbuddy`](https://github.com/jhansche/ha-birdbuddy). It uses the same integration domain (`birdbuddy`), so it **replaces** the upstream integration — the two cannot be installed alongside each other on the same Home Assistant instance.
+Requires Home Assistant **2025.1.4 or newer**. See the tested minimum, modern and
+current versions in [DEVELOPMENT.md](DEVELOPMENT.md). Tests use recorded and
+synthetic responses; physical hardware support has separate
+[evidence and limits](docs/hardware-and-roles.md).
 
-All credit for the original design and code belongs to [Joe Hansche](https://github.com/jhansche). Improvements in this fork aim to be contributed back upstream where appropriate.
+This fork uses the same `birdbuddy` domain as upstream. Keep only one copy of
+the integration installed. Back up your configuration before replacing an
+existing installation; preserve its config entry and registry data where
+possible to retain device and entity identities.
 
-## Migrating from upstream `jhansche/ha-birdbuddy`
+**Review collection automations before upgrading.** The old
+`birdbuddy_new_postcard_sighting` report-token workflow is no longer emitted.
+Current collection requires an explicit `selection_policy: server`; it has no
+verified equivalence to recognized-only, best-guess, mystery or numeric
+confidence rules. Disable old collection automations and follow the
+[automation migration guide](docs/automation-migration.md). Home Assistant
+Repairs explains deprecated inputs. Your automations are not rewritten.
 
-This fork is a drop-in replacement: same domain, same entity IDs, same event/service names. **You must uninstall the upstream integration first** — both register the `birdbuddy` domain and HA will not load two integrations with the same domain. Existing automations, blueprints, and dashboard cards that reference `birdbuddy_*` entities, `birdbuddy_new_postcard_sighting` events, or the `birdbuddy.collect_postcard` service will keep working after the swap.
+## Installation and setup
 
-## Prior to installation
+You need a Bird Buddy account with email/password authentication. Google,
+Facebook and other social sign-in methods are not implemented. An invited
+email/password member account may expose fewer fields and no owner controls;
+do not reset or re-pair hardware merely to install this integration.
 
-You will need your Bird Buddy `email` and `password`.
+### Marketplace (Home Assistant 2026.11 and newer)
 
-> **Note**
->
-> If your BirdBuddy account was created using SSO (Google, Facebook, etc), those methods will
-> not work currently. To work around that, you can sign up a new account using email and password,
-> and then invite that new account as a member of your main/owner account. Be aware that certain
-> information or functionality may not be available to member accounts (for example, "off-grid"
-> settings and firmware version).
->
-> Alternatively, you may reset the Bird Buddy unit and re-pair it with a new account that was created
-> with a password. See [Bird Buddy support](https://support.mybirdbuddy.com/hc/en-us/articles/9764938883089-Connecting-Bird-Buddy-to-a-different-Wi-Fi-network)
-> for more information.
+HACS is built into these versions as **Settings → Marketplace**. A separate HACS
+installation is no longer used. See the
+[Home Assistant Marketplace guide](https://www.home-assistant.io/integrations/marketplace/).
 
-## Installation
+1. Open **Settings → Marketplace → Add from link** and enter
+   `https://github.com/JoeQuantum/ha-birdbuddy`.
+2. Complete the GitHub connection when prompted; custom repositories require it.
+3. Install Bird Buddy and restart Home Assistant when prompted.
+4. Open **Settings → Devices & Services → Add Integration → Bird Buddy** and
+   enter your Bird Buddy email and password.
 
-### With HACS
+Existing HACS installations migrate to Marketplace when Home Assistant upgrades.
+Back up your configuration before upgrading either Home Assistant or Bird Buddy.
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+### HACS (Home Assistant 2025.1.4–2026.10)
 
-1. Open HACS Settings and add this repository (`https://github.com/JoeQuantum/ha-birdbuddy/`)
-   as a Custom Repository (use **Integration** as the category).
-2. The `Bird Buddy` page should automatically load (or find it in the HACS Store).
-3. Click `Install`.
-4. Continue to [Setup](#setup).
+1. Add `https://github.com/JoeQuantum/ha-birdbuddy` as a HACS custom repository,
+   category **Integration**.
+2. Install Bird Buddy and restart Home Assistant when prompted.
+3. Open **Settings → Devices & Services → Add Integration → Bird Buddy**.
+4. Enter your Bird Buddy email and password.
 
-Alternatively, click the button below to add the repository:
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=Integration&repository=ha-birdbuddy&owner=JoeQuantum)
+[![Add this HACS repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=Integration&repository=ha-birdbuddy&owner=JoeQuantum)
 
 ### Manual
 
-Copy the `birdbuddy` directory from `custom_components` in this repository, and place it inside your Home Assistant Core installation's `custom_components` directory.
+Copy `custom_components/birdbuddy` into your Home Assistant configuration's
+`custom_components` directory, restart Home Assistant, then add Bird Buddy
+through **Settings → Devices & Services**.
 
-## Setup
+[![Set up Bird Buddy](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=birdbuddy)
 
-1. Install this integration.
-2. Navigate to the Home Assistant Integrations page (**Settings → Devices & Services**).
-3. Click the **+ Add Integration** button in the bottom-right.
-4. Search for `Bird Buddy`.
+Expired authentication opens a reauthentication flow for the existing account.
+Use that same Bird Buddy account: account UUID checks prevent silently moving
+an existing entry to another account. An account with no feeders can remain
+configured and discover accepted feeders later.
 
-Alternatively, click the button below to add the integration:
+## Polling and devices
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=birdbuddy)
+Under **Settings → Devices & Services → Bird Buddy → Configure**, set the polling
+interval from **1–20 minutes**, default **10**. Changes apply without restarting.
+This is a cloud polling integration, not a real-time push feed.
 
-# Options
+Each accepted owner/member feeder gets a device. Newly accepted feeders and
+role changes are discovered on successful account refreshes. Removed feeders
+become unavailable; registry identities and user-disabled settings are retained.
+Pending invitations do not create operational entities. Shared feeders need
+explicit account selection for ambiguous actions.
 
-After setup, open **Settings → Devices & Services → Bird Buddy → Configure** to adjust:
+**Last Sync** is the last successful account/feeder telemetry refresh in UTC.
+The same account timestamp is shown on each of its feeders. It is not a promise
+that every postcard, image or collection request succeeded: postcard processing
+has independent status and Repairs. See
+[diagnostics and recovery](docs/diagnostics-and-restore.md).
 
-| Option             | Description                                                                                          |
-|--------------------|------------------------------------------------------------------------------------------------------|
-| `Polling interval` | How often the integration polls the Bird Buddy API for new data, in minutes (1–20). Default is `10`. |
+## Entities
 
-Changing the polling interval takes effect immediately — no restart required.
+<!-- markdownlint-disable MD013 -->
 
-# Devices
+| Entity | Behavior |
+| --- | --- |
+| Battery / Charging | Reported percentage and charging state; missing values stay unknown |
+| Feeder State | Reported device state; future values fall back to unknown |
+| Signal Strength | Reported Wi-Fi RSSI; disabled by default |
+| Audio | Owner control; omitted/unavailable when audio is explicitly unsupported |
+| Off-Grid | Owner control with bounded completion checks |
+| Power Profile | Owner's configured selection; disabled by default; does not infer Smart Energy's running profile |
+| Recent Visitor | Latest recognized species name, or unknown for unidentified visits; selected preview image and last-five `visitors` attribute |
+| Recent Visitor Image | Most recent preview image; enabled by default |
+| Recent Visitor Image 2–5 | Additional recent visits; disabled by default |
+| Last Sync | Account telemetry timestamp attached to each feeder |
+| Update | Owner firmware availability and immediate installation with fresh preconditions and bounded monitoring |
+| Temperature / Food Level | Experimental, disabled by default; missing readings stay unknown |
 
-A device is created for each Bird Buddy feeder associated with the account. See below for the entities available.
+<!-- markdownlint-enable MD013 -->
 
-# Entities
+Enable optional entities on the feeder's entity page. Hardware generations,
+housings, account roles and subscription limits are documented in the
+[hardware matrix](docs/hardware-and-roles.md). Schema recognition of Nook,
+Ultra Frenzy or Smart Energy does not establish verified physical behavior or
+subscription eligibility.
 
-| Entity           | Entity Type     | Notes                                                                                                                                           |
-|------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Audio`          | `switch`        | Whether recorded visitor videos will include audio.                                                                                             |
-| `Battery`        | `sensor`        | Current Bird Buddy battery percentage                                                                                                           |
-| `Charging`       | `binary_sensor` | Whether the Bird Buddy is currently charging                                                                                                    |
-| `Off-Grid`       | `switch`        | Present and toggle Off-Grid status (owners only)                                                                                                |
-| `Power Profile`  | `select`        | Choose between Power Profile settings. NOTE: `FRENZY_MODE` appears to be a paid feature requiring an active payment subscription.               |
-| `Recent Visitor` | `sensor`        | State represents the most recent visitor's bird species name (blank for an unidentified visitor), and the `entity_picture` points to that visit's image — fetched directly from the postcard, so it appears even before the bird is identified in the app. The `visitors` attribute exposes the last 5 visits as a list (`species`, `media_url`, `created_at`) for templating; `species` is `null` for unidentified visits. |
-| `Recent Visitor Image`     | `image`         | The most recent visitor's image. Enabled by default.                                                                                  |
-| `Recent Visitor Image 2-5` | `image`         | Carousel positions 2..5 of the recent-visitor feed. Disabled by default — enable in **Settings → Devices → Bird Buddy** for the carousel dashboard cards (see below). |
-| `State`          | `sensor`        | Current state (ready, offline, etc)                                                                                                             |
-| `Signal`         | `sensor`        | Current wifi signal (RSSI)                                                                                                                      |
-| `Last Sync`      | `sensor`        | Timestamp of the last successful poll of the Bird Buddy API. Diagnostic; one per feeder.                                                        |
-| `Update`         | `update`        | Show and install Firmware updates (owners only)                                                                                                 |
+## Recent images and media browser
 
-Some entities are disabled or hidden by default if they represent an advanced use case (for example, the "Signal" entity), or because the support is not yet enabled by the Bird Buddy API (for example, the Temperature and Food Level sensors).
+The recent visitor sensor exposes up to five entries with `species`, `media_url`
+and `created_at`; unidentified species are null. Preview images may appear
+before collection. Video-only visits remain visits; a thumbnail can be shown
+when available, but a video content URL is never treated as an image.
 
-More entities will be added as this fork matures.
+Image entities refresh expiring media through read-only detail lookups and
+bounded caching. URLs are temporary and should not be used as stable IDs or
+permanent archive links. A failed refresh remains a visible failure.
 
-# Media
+Collected media is browsable under **Media → Bird Buddy**, grouped by account
+and species collection. Cloud collection through the app or explicit service
+is separate from downloading files. See the [local archive recipe](docs/local-archive.md)
+to save every selected image and video to an explicit local destination.
 
-Bird species and sightings that have _already been collected_ from postcards can be viewed in the Home Assistant Media Browser. To collect a postcard you will need to use the mobile app to open the postcards as they arrive. Only opened postcards can be viewed in the Media Browser (same as the Collections tab in the Bird Buddy app).
+### Dashboard example
 
-# Dashboards
-
-> This native carousel replaces the older download-and-rotate-files automation pattern that some forum posts recommend. The integration now retains the last 5 visits with fresh signed URLs (rebuilt from the feed each poll), so a third-party carousel card can drive a slideshow directly off the entities.
-
-## Recent visitor carousel
-
-The integration exposes the most recent visitor at `image.<feeder>_recent_visitor_image` (enabled by default) and positions 2..5 at `image.<feeder>_recent_visitor_image_2` … `_5` (disabled by default — enable them under **Settings → Devices & Services → Bird Buddy → Entities**).
-
-Pair them with [Simple Swipe Card](https://github.com/nutteloost/simple-swipe-card) (actively maintained, has a built-in carousel mode and auto-swipe). The example below uses `picture-entity` cards so each slide shows the bird image and a tap action that opens the entity:
-
-```yaml
-type: custom:simple-swipe-card
-card_min_height: 240
-loop_mode: infinite
-auto_swipe: true
-swipe_interval: 5000
-cards:
-  - type: picture-entity
-    entity: image.backyard_recent_visitor_image
-    show_state: false
-    show_name: false
-  - type: picture-entity
-    entity: image.backyard_recent_visitor_image_2
-    show_state: false
-    show_name: false
-  - type: picture-entity
-    entity: image.backyard_recent_visitor_image_3
-    show_state: false
-    show_name: false
-  - type: picture-entity
-    entity: image.backyard_recent_visitor_image_4
-    show_state: false
-    show_name: false
-  - type: picture-entity
-    entity: image.backyard_recent_visitor_image_5
-    show_state: false
-    show_name: false
-```
-
-[`swipe-card-lite`](https://github.com/nutteloost/swipe-card-lite) (same author, no auto-swipe) is also a good fit if you want a manual-swipe gallery.
-
-> **Avoid `Image` cards inside the older unmaintained `custom:swipe-card`.** That combination throws `Unknown type encountered: Image` and the card silently fails to render. If you must use `swipe-card`, switch the inner cards to `picture-entity` or `picture-glance` as shown above.
-
-You can also drive a custom carousel from the `Recent Visitor` sensor's `visitors` attribute (a list of `{species, media_url, created_at}`), which is useful for templating or for cards that take a list of URLs directly.
-
-## Example dashboards
-
-A simple "what's at the feeder" panel — entities for state-at-a-glance, plus the latest visit picture for the photo:
+Replace these example entity IDs with your feeder's IDs:
 
 ```yaml
 type: vertical-stack
@@ -156,140 +147,109 @@ cards:
     entity: image.backyard_recent_visitor_image
     name: Latest visitor
   - type: entities
-    title: Backyard feeder
     entities:
-      - entity: sensor.backyard_recent_visitor
-        name: Most recent visitor
-      - entity: sensor.backyard_battery
-      - entity: sensor.backyard_state
-      - entity: switch.backyard_audio
+      - sensor.backyard_recent_visitor
+      - sensor.backyard_battery
+      - sensor.backyard_feeder_state
+      - switch.backyard_audio
 ```
 
-> **Some entities are disabled by default** — `Signal Strength`, `Temperature`, `Food Level`, and the carousel positions `Recent Visitor Image 2` through `_5`. To enable any of them: **Settings → Devices & Services → Bird Buddy → (your feeder) → +N entities not shown → Enable**.
+For a carousel, enable image positions 2–5 and add those image entities to your
+chosen dashboard card. The integration supplies the images; third-party card
+installation and compatibility are independent.
 
-# Events
+## Events and delivery
 
-### `birdbuddy_new_feed_item`
+`birdbuddy_new_postcard` is the collection-safe event for newly observed
+`FeedItemNewPostcard` items. Its version 1 payload includes a stable `event_id`,
+`source`, `config_entry_id`, `account_id`, `feeder_id`, `postcard_id`, recognized
+`species`, typed `medias` and `preview_url`. Unknown attribution remains null.
 
-Fired once for each newly-seen visitor-bearing feed item, on the poll where it first appears. This is independent of and additive to [`birdbuddy_new_postcard_sighting`](#birdbuddy_new_postcard_sighting) — it fires for **every** new visit (`FeedItemNewPostcard`, `FeedItemCollectedPostcard`, `FeedItemSpeciesSighting`, `FeedItemSpeciesUnlocked`, `FeedItemMysteryVisitorNotRecognized`, `FeedItemMysteryVisitorResolved`), and crucially carries the **image URL directly** — including for unidentified postcards, which never produce a sighting. Use it when you just want "a bird visited, here's the picture" without depending on the collect-to-sighting conversion.
+Large events explicitly mark omitted detail. Call `birdbuddy.get_postcard_details`
+to retrieve all selected media/species and refresh URLs without inference,
+collection or sharing. See the [complete event contract](docs/postcard-events.md).
 
-The payload is intentionally slim (refs plus the fields automations need, not the full nested feed blob — it stays well under Home Assistant's 32768-byte recorder cap on event data):
+Initial setup seeds the latest baseline without firing collection events.
+Subsequent pending work and checkpoints are stored per account. Delivery is
+at least once: after a crash, the same event may repeat with its stable ID.
+External effects need their own deduplication. The
+[durable intake guide](docs/durable-intake.md) explains capacity, retention,
+retry, unknown outcomes and recovery.
 
-| Field           | Description                                                                              |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| `item_id`       | The feed node id.                                                                        |
-| `type`          | The feed node `__typename` (e.g. `FeedItemNewPostcard`).                                  |
-| `created_at`    | ISO-8601 timestamp string from the feed item.                                            |
-| `feeder_id`     | The feeder id, resolved from the media URL when possible; `null` if it can't be matched. |
-| `media_url`     | Full-size image URL when available, else `null`.                                          |
-| `thumbnail_url` | Thumbnail image URL when available, else `null`.                                          |
+`birdbuddy_postcard_backfill` is separate historical delivery, never the default
+collection trigger. The temporary `birdbuddy_new_feed_item` notification
+adapter retains `item_id`, `type`, `created_at`, `feeder_id`, `media_url` and
+`thumbnail_url`, plus the new contract. The image URL may be null, particularly
+for video-only visits. The adapter and equivalent `postcard.id` / `share_media`
+action aliases remain through releases **0.2 and 0.3**, with removal planned
+for **0.4.0**. Legacy strategy/sighting data has no compatibility mapping.
 
-Notes:
-- Deduplication is in-memory (the most recent 500 item ids); it is **not** persisted to the config entry, so it never grows `.storage`. On restart, the first poll re-seeds the seen-set silently rather than replaying the backlog.
-- For raw `FeedItemNewPostcard` items the image is fetched via the same direct postcard-media path added in v0.1.8, so unidentified visits still carry a picture.
+The tested [notification example](examples/notify_postcard.yaml) handles
+recognized, unidentified and video-only postcards using fresh details and
+stable notification tags. Read the [notification guide](docs/notifications.md)
+for queue, image and duplicate-delivery limits.
 
-### `birdbuddy_new_postcard_sighting`
+## Actions
 
-This event is fired when a new postcard is detected in the feed *and Bird Buddy is able to convert it to a sighting*.
+All supplied `config_entry_id`, `account_id`, `device_id` and `feeder_id` targets
+must agree. Use an explicit account when a feeder is shared. Never choose an
+account based on list order or infer feeder ownership from a media URL.
 
-> **Note**
->
-> Home Assistant's recorder caps `event_data` at 32768 bytes. The raw GraphQL response for a postcard sighting routinely exceeds that (~150 KB in pathological cases) due to signed media URL lists, deeply-nested feeder context, locale-translated species text, and the full suggestions tree. The integration slims the payload before firing — the resulting event is typically <10 KB.
+<!-- markdownlint-disable MD013 -->
 
-The event payload:
+| Action | Purpose |
+| --- | --- |
+| `birdbuddy.get_postcard_details` | Read full selected details for `postcard_id`; returns a response |
+| `birdbuddy.identify_postcard` | Explicitly run inference; does not collect/share |
+| `birdbuddy.collect_postcard` | Collect using explicit `selection_policy: server`; booleans `identify` and `share` default false |
+| `birdbuddy.backfill` | Read bounded history and queue separate backfill events; no collection |
+| `birdbuddy.retry_feed_items` | Retry failed event delivery; subscribed automations may act again |
+| `birdbuddy.acknowledge_postcard_retry` | Explicitly permit a later retry after checking an uncertain action; performs no cloud mutation itself |
 
-| Field      | Description                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| `postcard` | `{id, __typename, createdAt}` — just enough to reference the postcard.                                   |
-| `sighting` | Slim view of `PostcardSighting`; see fields below.                                                        |
+<!-- markdownlint-enable MD013 -->
 
-`sighting` contains:
+The [service definitions](custom_components/birdbuddy/services.yaml) list all
+fields and limits. Unknown action outcomes are retained and are not blindly
+retried. Read the postcard's current state and check the Bird Buddy app before
+acknowledging a retry. Read-only polling and historical replay never identify,
+collect or share automatically.
 
-- `sighting.feeder` — `{id, name}` only. Use `id` to filter automations to a specific feeder (the Device Trigger does this automatically).
-- `sighting.coverMedia` — `{id, __typename, thumbnailUrl, contentUrl}` for the first (representative) image. Time-sensitive signed URLs. Use the Recent Visitor entity's `entity_picture` for a persistent reference instead.
-- `sighting.videoMedia` — `{id, __typename}` when a video is available (id is sufficient for `collect_postcard`).
-- `sighting.sightingReport`:
-  - `.reportToken` — opaque signed token; required by `collect_postcard`.
-  - `.sightings[]` — list of sightings grouped together in the postcard. Each entry has:
-    - `id`, `__typename` (e.g. `SightingRecognizedBird`, `SightingCantDecideWhichBird`)
-    - `matchTokens[]`
-    - `species` — `{id, __typename, name, iconUrl}` for the recognized species
-    - `suggestions[]` — alternative species the AI considered. Each `{id, __typename, species: {id, __typename, name}}`. `iconUrl` is intentionally dropped from suggestions to stay under the recorder cap (each signed URL is ~600-900 bytes and there can be 5-10 suggestions per sighting).
+### Collect a chosen postcard
 
-The slim payload preserves everything `birdbuddy.collect_postcard` needs, so pass-through blueprints and automations continue to work.
-
-This event data can also be passed through as-is to the [`birdbuddy.collect_postcard`](#birdbuddycollect_postcard) service.
-
-This event can also be wired up via the "A new postcard is ready" Device Trigger:
+This action deliberately accepts server selection, without inference or sharing:
 
 ```yaml
-trigger:
-  - platform: device
-    domain: birdbuddy
-    type: new_postcard
-    device_id: <ha device id>
-    feeder_id: <bird buddy feeder id>
+service: birdbuddy.collect_postcard
+data:
+  config_entry_id: YOUR_BIRD_BUDDY_CONFIG_ENTRY
+  postcard_id: YOUR_POSTCARD_ID
+  selection_policy: server
+  identify: false
+  share: false
 ```
 
-# Services
+Read the [selection-policy evidence](docs/postcard-selection-policy.md) before
+migrating a custom recognized-only, mystery or confidence-based workflow.
 
-### `birdbuddy.collect_postcard`
+### Collection blueprint
 
-"Finishes" a postcard sighting by adding the media to the associated species collections, making them available in the [Media Browser](#media). This is the same effect as opening and saving the postcard in the Bird Buddy app.
+The [collection blueprint](custom_components/birdbuddy/blueprints/collect_postcard.yaml)
+has explicit account/device selectors and a finite queue of 20 by default.
+Its initial policy is disabled pending review. Choose **Use Bird Buddy's server
+selection** deliberately, then decide whether to identify or share. It accepts
+only version 1 live new postcards for the selected feeder and account.
 
-> **Note**
->
-> This service _is not_ intended to be invoked manually — use it in conjunction with the
-> [`birdbuddy_new_postcard_sighting`](#birdbuddy_new_postcard_sighting) event, device trigger, or [Blueprint](#blueprint).
->
-> Attempting to call the service manually will likely fail, because the service requires the `postcard` and `sighting` data that would be included in the event.
+[![Import the collection blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJoeQuantum%2Fha-birdbuddy%2Fblob%2Fmain%2Fcustom_components%2Fbirdbuddy%2Fblueprints%2Fcollect_postcard.yaml)
 
-| Service attribute data  | Optional | Description                                                                                |
-| ----------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| `postcard`              | No       | Postcard data from `birdbuddy_new_postcard_sighting` event                            |
-| `sighting`              | No       | Sighting data from `birdbuddy_new_postcard_sighting` event                            |
-| `strategy`              | Yes      | Strategy for resolving the sighting (see strategies below, default: `recognized`)          |
-| `best_guess_confidence` | Yes      | Minimum confidence to support `"best_guess"` strategy (default: 10%)                       |
-| `share_media`           | Yes      | Whether the saved media will also be shared with the community (default: false)            |
+Queue overflow is logged as a warning; failures appear in traces. Automation
+queues do not survive reloads/restarts. Installed blueprint copies are not
+updated by integration updates: reimport and migrate deliberately using the
+[upgrade guide](docs/automation-migration.md).
 
-Postcard sighting strategies:
+## Development and support
 
-- `recognized` (default): collect the postcard only if Bird Buddy's AI identified a bird species. Note: the identified species may be incorrect. Sightings not recognized by the Bird Buddy API will be *discarded*.
-- `best_guess`: In the "can't decide which bird" sightings, a list of possible species is usually included. This strategy behaves like `recognized`, but if the species is not recognized it will select the highest-confidence species automatically (assuming that confidence is at least `best_guess_confidence`, default 10%). If none of the suggestions meet the threshold, the sighting is *discarded*.
-- `mystery`: Same behavior as `best_guess`, but if no species meets the confidence threshold, collect the sighting as a "Mystery Visitor".
-
-#### Automation example
-
-```yaml
-trigger:
-  - platform: event
-    event_type: birdbuddy_new_postcard_sighting
-  # OR a device trigger:
-  - platform: device
-    domain: birdbuddy
-    type: new_postcard
-    # $ids...
-action:
-  - service: birdbuddy.collect_postcard
-    data:
-      strategy: best_guess
-      # pass-through these 2 event fields as they are
-      postcard: "{{ trigger.event.data.postcard }}"
-      sighting: "{{ trigger.event.data.sighting }}"
-```
-
-#### Blueprint
-
-To simplify the combination of the trigger and the action of collecting the postcard, you can import a predefined [Blueprint](https://www.home-assistant.io/docs/automation/using_blueprints/).
-
-To add the Blueprint, use the button below:
-
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FJoeQuantum%2Fha-birdbuddy%2Fblob%2Fmain%2Fcustom_components%2Fbirdbuddy%2Fblueprints%2Fcollect_postcard.yaml)
-
-Or go to **Settings → Automations & Scenes → Blueprints**, click the **Import Blueprint** button, and enter this URL:
-
-```
-https://github.com/JoeQuantum/ha-birdbuddy/blob/main/custom_components/birdbuddy/blueprints/collect_postcard.yaml
-```
-
-After import, [create an automation from the Blueprint](https://www.home-assistant.io/docs/automation/using_blueprints/#blueprint-automations). If we update the Blueprint upstream, your imported Blueprint will not automatically receive the update — you may need to re-import.
+Report fork issues at [JoeQuantum/ha-birdbuddy](https://github.com/JoeQuantum/ha-birdbuddy/issues).
+Include integration/HA versions and sanitized diagnostics, not passwords,
+report tokens, private locations or signed media URLs. See
+[development checks](DEVELOPMENT.md), [fixture provenance](docs/fixtures.md) and
+[diagnostics and restore](docs/diagnostics-and-restore.md).

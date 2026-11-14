@@ -1,223 +1,191 @@
-"""Tests for the additive EVENT_NEW_FEED_ITEM coordinator event."""
+"""Coordinator event contracts use durable identity and preserve media detail."""
 
-from __future__ import annotations
+from homeassistant.components.recorder.db_schema import EventData, MAX_EVENT_DATA_BYTES
+from homeassistant.core import CoreState
+from homeassistant.helpers import issue_registry as ir
+import pytest
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
-from birdbuddy.feed import FeedNode
-
-from custom_components.birdbuddy.const import EVENT_NEW_FEED_ITEM
-from custom_components.birdbuddy.coordinator import (
-    _SEEN_FEED_ITEM_CAP,
-    BirdBuddyDataUpdateCoordinator,
+from custom_components.birdbuddy.const import (
+    DOMAIN,
+    EVENT_NEW_FEED_ITEM,
+    EVENT_NEW_POSTCARD,
+    EVENT_NEW_POSTCARD_SIGHTING,
+    EVENT_POSTCARD_BACKFILL,
 )
-
-SLIM_KEYS = {
-    "item_id",
-    "type",
-    "created_at",
-    "feeder_id",
-    "media_url",
-    "thumbnail_url",
-}
-
-
-def _make_coordinator(feeders=("f1",)) -> BirdBuddyDataUpdateCoordinator:
-    from collections import deque
-
-    c = object.__new__(BirdBuddyDataUpdateCoordinator)
-    c.client = MagicMock()
-    c.client.feeders = {fid: object() for fid in feeders}
-    c.client._make_request = AsyncMock(return_value={})
-    c.hass = MagicMock()
-    c._seen_feed_ids = set()
-    c._seen_feed_order = deque(maxlen=_SEEN_FEED_ITEM_CAP)
-    return c
+from tests.coordinator_helpers import (
+    accounts_factory as accounts_factory,
+    card,
+    hass_config_dir as hass_config_dir,
+    hass_storage as hass_storage,
+    isolated_storage_directory as isolated_storage_directory,
+)
+from tests.fixtures import load_fixture
 
 
-def _sighting_node(node_id: str, *, feeder: str = "f1") -> FeedNode:
-    return FeedNode(
-        {
-            "__typename": "FeedItemSpeciesSighting",
-            "id": node_id,
-            "createdAt": "2026-06-25T12:00:00.000+0000",
-            "media": {
-                "__typename": "MediaImage",
-                "id": f"m-{node_id}",
-                "contentUrl": f"https://cdn.example.com/{feeder}/{node_id}.jpg",
-                "thumbnailUrl": f"https://cdn.example.com/{feeder}/{node_id}-t.jpg",
-            },
-        }
-    )
-
-
-def _postcard_node(node_id: str) -> FeedNode:
-    # Raw postcard as it appears in the *typed* feed: no media here.
-    return FeedNode(
-        {
-            "__typename": "FeedItemNewPostcard",
-            "id": node_id,
-            "createdAt": "2026-06-25T12:01:00.000+0000",
-        }
-    )
-
-
-def _feed(nodes: list[FeedNode]) -> MagicMock:
-    feed = MagicMock()
-    feed.filter.return_value = nodes
-    return feed
-
-
-def _postcard_media_result(node_id: str, *, feeder: str = "f1") -> dict:
-    return {
-        "me": {
-            "feed": {
-                "edges": [
-                    {
-                        "node": {
-                            "__typename": "FeedItemNewPostcard",
-                            "id": node_id,
-                            "medias": [
-                                {
-                                    "__typename": "MediaImage",
-                                    "id": f"pm-{node_id}",
-                                    "contentUrl": f"https://cdn.example.com/{feeder}/{node_id}.jpg",
-                                    "thumbnailUrl": f"https://cdn.example.com/{feeder}/{node_id}-t.jpg",
-                                }
-                            ],
-                        }
-                    }
-                ]
-            }
-        }
+def listen(hass):
+    events = {
+        kind: []
+        for kind in (
+            EVENT_NEW_POSTCARD,
+            EVENT_NEW_FEED_ITEM,
+            EVENT_NEW_POSTCARD_SIGHTING,
+            EVENT_POSTCARD_BACKFILL,
+        )
     }
+    for kind, captured in events.items():
+        hass.bus.async_listen(kind, captured.append)
+    return events
 
 
-def _fired(coordinator) -> list[dict]:
-    return [
-        call.kwargs["event_data"]
-        for call in coordinator.hass.bus.fire.call_args_list
-        if call.kwargs.get("event_type") == EVENT_NEW_FEED_ITEM
+async def test_new_postcard_publishes_modern_and_legacy_notifications_once(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    account.snapshot = [card()]
+    await account.poll()
+    await account.poll()
+    await hass.async_block_till_done()
+    assert len(events[EVENT_NEW_POSTCARD]) == len(events[EVENT_NEW_FEED_ITEM]) == 1
+    modern = events[EVENT_NEW_POSTCARD][0].data
+    legacy = events[EVENT_NEW_FEED_ITEM][0].data
+    assert modern["schema_version"] == legacy["schema_version"] == 1
+    assert modern["event_id"] == legacy["event_id"]
+    assert modern["postcard_id"] == legacy["item_id"] == "card-a"
+    assert modern["config_entry_id"] == account.entry.entry_id
+    assert modern["account_id"] == "account-a"
+    assert modern["feeder_id"] == "feeder-a"
+    assert len(modern["medias"]) == 3
+    assert modern["media_count"] == 3
+    assert modern["medias_complete"] is True
+    assert not events[EVENT_NEW_POSTCARD_SIGHTING]
+    assert not events[EVENT_POSTCARD_BACKFILL]
+    account.assert_no_mutations()
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "FeedItemCollectedPostcard",
+        "FeedItemSpeciesSighting",
+        "FeedItemSpeciesUnlocked",
+        "FeedItemMysteryVisitorNotRecognized",
+        "FeedItemMysteryVisitorResolved",
+    ],
+)
+async def test_other_visit_kinds_only_emit_the_feed_notification(
+    hass, accounts_factory, kind
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    account.snapshot = [card(kind=kind)]
+    await account.poll()
+    await hass.async_block_till_done()
+    assert [event.data["kind"] for event in events[EVENT_NEW_FEED_ITEM]] == [kind]
+    assert not events[EVENT_NEW_POSTCARD]
+    assert not events[EVENT_NEW_POSTCARD_SIGHTING]
+    account.assert_no_mutations()
+
+
+async def test_video_only_event_keeps_video_and_uses_thumbnail_for_preview(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    raw = load_fixture("postcard_video_only.json")
+    account.snapshot = [raw]
+    await account.poll()
+    await hass.async_block_till_done()
+    modern = events[EVENT_NEW_POSTCARD][0].data
+    legacy = events[EVENT_NEW_FEED_ITEM][0].data
+    assert modern["medias"][0]["kind"] == "MediaVideo"
+    assert modern["preview_url"] == raw["medias"][0]["thumbnailUrl"]
+    assert legacy["media_url"] is None
+    assert legacy["thumbnail_url"] == modern["preview_url"]
+    account.assert_no_mutations()
+
+
+async def test_actual_published_event_fits_recorder_with_explicit_detail_route(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    account.snapshot = [load_fixture("postcard_long_urls.json")]
+    await account.poll()
+    await hass.async_block_till_done()
+    for kind in (EVENT_NEW_POSTCARD, EVENT_NEW_FEED_ITEM):
+        event = events[kind][0]
+        encoded = EventData.shared_data_bytes_from_event(event, None)
+        assert encoded != b"{}"
+        assert len(encoded) < MAX_EVENT_DATA_BYTES
+        assert event.data["details_required"] is True
+        assert event.data["media_count"] == 25
+        assert event.data["medias_complete"] is False
+        assert (
+            event.data["details"]["data"]["config_entry_id"] == account.entry.entry_id
+        )
+        assert event.data["event_id"].startswith("birdbuddy:")
+
+
+async def test_backfill_is_separate_from_live_automation_events(hass, accounts_factory):
+    hass.set_state(CoreState.running)
+    history = [card(f"old-{i}") for i in range(25)]
+    account = accounts_factory(snapshot=history)
+    events = listen(hass)
+    await account.poll()
+    result = await account.coordinator.async_backfill(max_pages=2)
+    await hass.async_block_till_done()
+    assert result == {"queued": 5, "delivered": 5, "pending": 0}
+    assert len(events[EVENT_POSTCARD_BACKFILL]) == 5
+    assert all(
+        event.data["source"] == "backfill" for event in events[EVENT_POSTCARD_BACKFILL]
+    )
+    assert not events[EVENT_NEW_POSTCARD]
+    assert not events[EVENT_NEW_FEED_ITEM]
+    assert not events[EVENT_NEW_POSTCARD_SIGHTING]
+    assert account.scan_arguments == [2]
+    account.assert_no_mutations()
+
+
+async def test_nonvisitor_is_acknowledged_without_fabricating_a_postcard(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    account.snapshot = [
+        {
+            "id": "notice",
+            "__typename": "FeedItemUnknownFuture",
+            "createdAt": "2026-01-01T12:00:00Z",
+        }
     ]
+    await account.poll()
+    await hass.async_block_till_done()
+    assert not any(events.values())
+    assert account.coordinator.intake.pending_count == 0
+    account.assert_no_mutations()
 
 
-def test_fires_once_per_new_item() -> None:
-    c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1"), _sighting_node("s2")]))
-
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-
-    fired = _fired(c)
-    assert {p["item_id"] for p in fired} == {"s1", "s2"}
-    assert all(p["type"] == "FeedItemSpeciesSighting" for p in fired)
-    assert all(p["feeder_id"] == "f1" for p in fired)
-    assert all(p["media_url"].endswith(".jpg") for p in fired)
-
-
-def test_does_not_refire_on_repeat() -> None:
-    c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1")]))
-
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-
-    assert len(_fired(c)) == 1
-
-
-def test_seed_only_marks_without_firing() -> None:
-    c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1"), _sighting_node("s2")]))
-
-    asyncio.run(c._fire_new_feed_item_events(seed_only=True))
-    assert _fired(c) == []
-    assert c._seen_feed_ids == {"s1", "s2"}
-
-    # A subsequent normal poll of the same items fires nothing (already seeded).
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-    assert _fired(c) == []
-
-
-def test_unidentified_postcard_carries_image() -> None:
-    c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_postcard_node("p1")]))
-    c.client._make_request = AsyncMock(return_value=_postcard_media_result("p1"))
-
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-
-    fired = _fired(c)
-    assert len(fired) == 1
-    assert fired[0]["type"] == "FeedItemNewPostcard"
-    assert fired[0]["media_url"] == "https://cdn.example.com/f1/p1.jpg"
-    assert fired[0]["feeder_id"] == "f1"
-
-
-def test_payload_is_slim() -> None:
-    c = _make_coordinator()
-    c.client.feed = AsyncMock(return_value=_feed([_sighting_node("s1")]))
-
-    asyncio.run(c._fire_new_feed_item_events(seed_only=False))
-
-    payload = _fired(c)[0]
-    assert set(payload) == SLIM_KEYS
-
-
-def test_dedup_set_respects_cap() -> None:
-    c = _make_coordinator()
-    for i in range(_SEEN_FEED_ITEM_CAP + 100):
-        c._mark_feed_item_seen(f"id-{i}")
-
-    assert len(c._seen_feed_ids) == _SEEN_FEED_ITEM_CAP
-    # Oldest evicted, newest retained.
-    assert "id-0" not in c._seen_feed_ids
-    assert f"id-{_SEEN_FEED_ITEM_CAP + 99}" in c._seen_feed_ids
-
-
-def _make_poll_coordinator() -> BirdBuddyDataUpdateCoordinator:
-    """A coordinator wired to run `_async_update_data` end to end (first poll
-    onward), so the seed-on-first-real-poll gating can be exercised."""
-    from collections import deque
-
-    c = object.__new__(BirdBuddyDataUpdateCoordinator)
-    c.client = MagicMock()
-    c.client.refresh = AsyncMock(return_value=True)
-    c.client.refresh_feed = AsyncMock(return_value=[])
-    c.client.feeders = {"f1": {"id": "f1", "name": "Backyard"}}
-    c.client._make_request = AsyncMock(return_value={})
-    c.hass = MagicMock()
-    c.feeders = {}
-    c.visitors = {}
-    c.first_update = True
-    c.last_update_timestamp = None
-    c._seen_feed_ids = set()
-    c._seen_feed_order = deque(maxlen=_SEEN_FEED_ITEM_CAP)
-    c._feed_events_seeded = False
-    return c
-
-
-def test_setup_poll_does_not_fetch_feed_or_fire() -> None:
-    """Regression for the v0.1.9 CI failure: the first (setup) poll must not
-    call client.feed() at all — that real fetch leaked a resolver thread the
-    test harness fails on. Seeding moves to the first post-setup poll."""
-    c = _make_poll_coordinator()
-    feed = _feed([_sighting_node("a")])
-    c.client.feed = AsyncMock(return_value=feed)
-
-    # Poll 1 (first_update / setup): no feed fetch, nothing fired, nothing seeded.
-    asyncio.run(c._async_update_data())
-    assert c.client.feed.await_count == 0
-    assert _fired(c) == []
-    assert c._seen_feed_ids == set()
-    assert c._feed_events_seeded is False
-
-    # Poll 2 (first real poll): seed the backlog WITHOUT firing.
-    asyncio.run(c._async_update_data())
-    assert c.client.feed.await_count == 1
-    assert _fired(c) == []
-    assert c._seen_feed_ids == {"a"}
-    assert c._feed_events_seeded is True
-
-    # Poll 3: only genuinely-new items fire; the seeded backlog stays silent.
-    feed.filter.return_value = [_sighting_node("a"), _sighting_node("b")]
-    asyncio.run(c._async_update_data())
-    assert {p["item_id"] for p in _fired(c)} == {"b"}
+async def test_legacy_listener_gets_a_repair_instead_of_sighting_mutations(
+    hass, accounts_factory
+):
+    hass.set_state(CoreState.running)
+    account = accounts_factory()
+    events = listen(hass)
+    await account.poll()
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, "legacy_postcard_contract")
+        is not None
+    )
+    assert not events[EVENT_NEW_POSTCARD_SIGHTING]
+    account.assert_no_mutations()

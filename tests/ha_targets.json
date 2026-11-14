@@ -1,0 +1,28 @@
+{
+  "minimum": {
+    "homeassistant": "2025.1.4",
+    "harness": "0.13.205",
+    "harness_distribution": "pytest-homeassistant-custom-component",
+    "python": "3.12.13",
+    "requirements": "requirements.test.txt"
+  },
+  "modern": {
+    "homeassistant": "2026.7.1",
+    "harness": "0.13.345",
+    "harness_distribution": "pytest-homeassistant-custom-component",
+    "python": "3.14.4",
+    "requirements": "requirements.test-modern.txt"
+  },
+  "current": {
+    "homeassistant": "2026.11.1",
+    "harness": "2026.11.1",
+    "harness_distribution": "pytest-homeassistant",
+    "python": "3.14.4",
+    "requirements": "requirements.test-current.txt"
+  },
+  "current_smoke": {
+    "homeassistant": "2026.11.1",
+    "python": "3.14.4",
+    "requirements": "requirements.smoke.txt"
+  }
+}

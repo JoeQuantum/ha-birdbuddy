@@ -6,6 +6,9 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from birdbuddy.birds import Species
+from birdbuddy.media import Media
+
 from custom_components.birdbuddy.sensor import BirdBuddyRecentVisitorEntity
 from custom_components.birdbuddy.visitors import RecentVisitor
 
@@ -44,9 +47,13 @@ def test_state_and_picture_update_together_on_recognized_postcard() -> None:
     """Baseline: when a recognized bird arrives, both update to that sighting."""
     sensor = _make_sensor()
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
-        sensor._on_recent_visitor(_visitors(_media("cardinal.jpg"), _species("Cardinal")))
+        sensor._on_recent_visitor(
+            _visitors(
+                _media("https://cdn.example.invalid/cardinal.jpg"), _species("Cardinal")
+            )
+        )
     assert sensor._attr_native_value == "Cardinal"
-    assert sensor._attr_entity_picture == "cardinal.jpg"
+    assert sensor._attr_entity_picture == "https://cdn.example.invalid/cardinal.jpg"
 
 
 def test_state_clears_with_new_media_when_species_unrecognized() -> None:
@@ -68,32 +75,36 @@ def test_state_clears_with_new_media_when_species_unrecognized() -> None:
     # Sighting 1: recognized bird → both populated.
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
         sensor._on_recent_visitor(
-            _visitors(_media("cardinal.jpg"), _species("Cardinal"))
+            _visitors(
+                _media("https://cdn.example.invalid/cardinal.jpg"), _species("Cardinal")
+            )
         )
     assert sensor._attr_native_value == "Cardinal"
-    assert sensor._attr_entity_picture == "cardinal.jpg"
+    assert sensor._attr_entity_picture == "https://cdn.example.invalid/cardinal.jpg"
 
     # Sighting 2: new image but no species detected.
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
-        sensor._on_recent_visitor(_visitors(_media("blurry.jpg"), None))
+        sensor._on_recent_visitor(
+            _visitors(_media("https://cdn.example.invalid/blurry.jpg"), None)
+        )
 
     # Picture must be the new sighting's image (this already worked).
-    assert sensor._attr_entity_picture == "blurry.jpg"
+    assert sensor._attr_entity_picture == "https://cdn.example.invalid/blurry.jpg"
     # State must NOT still be "Cardinal" — that would be the #95 lag bug.
     # It can be None ("we saw something but don't know what"); the contract
     # this test enforces is that state and picture describe the same sighting.
     assert sensor._attr_native_value is None
 
 
-def test_species_only_update_preserves_picture() -> None:
-    """The collections-fallback path in `_update_latest_visitor` can deliver a
-    species update without a corresponding new media. State should update;
-    entity_picture should stay on the previous sighting's image."""
+def test_species_only_update_clears_previous_picture() -> None:
+    """A newer visit without media must not display the previous bird's image."""
     sensor = _make_sensor()
 
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
         sensor._on_recent_visitor(
-            _visitors(_media("first.jpg"), _species("Cardinal"))
+            _visitors(
+                _media("https://cdn.example.invalid/first.jpg"), _species("Cardinal")
+            )
         )
 
     # Now species arrives without media (e.g. backfilled from collections).
@@ -101,27 +112,28 @@ def test_species_only_update_preserves_picture() -> None:
         sensor._on_recent_visitor(_visitors(None, _species("Goldfinch")))
 
     assert sensor._attr_native_value == "Goldfinch"
-    assert sensor._attr_entity_picture == "first.jpg"
+    assert sensor._attr_entity_picture is None
 
 
-def test_empty_visitors_is_a_noop() -> None:
-    """When neither media nor species is present (e.g. initial register_callback
-    fires before any data arrives), the callback should not change state."""
+def test_empty_visitors_clears_previous_state() -> None:
+    """An empty canonical history clears species and picture together."""
     sensor = _make_sensor()
     sensor._attr_native_value = "Previous"
-    sensor._attr_entity_picture = "previous.jpg"
+    sensor._attr_entity_picture = "https://cdn.example.invalid/previous.jpg"
 
     with patch.object(BirdBuddyRecentVisitorEntity, "async_write_ha_state"):
         sensor._on_recent_visitor(_visitors(None, None))
 
-    assert sensor._attr_native_value == "Previous"
-    assert sensor._attr_entity_picture == "previous.jpg"
+    assert sensor._attr_native_value is None
+    assert sensor._attr_entity_picture is None
 
 
 def _recent_entry(species: str | None, url: str, when: datetime) -> RecentVisitor:
     return RecentVisitor(
-        media=SimpleNamespace(content_url=url, thumbnail_url=url),
-        species=SimpleNamespace(name=species) if species else None,
+        media=Media(
+            {"__typename": "MediaImage", "contentUrl": url, "thumbnailUrl": url}
+        ),
+        species=Species({"name": species}) if species else None,
         created_at=when,
     )
 
@@ -134,7 +146,9 @@ def test_visitors_attribute_populated_from_recent_list() -> None:
     base = datetime(2026, 5, 30, 12, 0, 0, tzinfo=timezone.utc)
     recent = [
         _recent_entry("Cardinal", "https://cdn.example.com/0.jpg", base),
-        _recent_entry("Goldfinch", "https://cdn.example.com/1.jpg", base.replace(hour=11)),
+        _recent_entry(
+            "Goldfinch", "https://cdn.example.com/1.jpg", base.replace(hour=11)
+        ),
         _recent_entry(None, "https://cdn.example.com/2.jpg", base.replace(hour=10)),
     ]
 

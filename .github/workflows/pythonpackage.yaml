@@ -3,29 +3,72 @@ name: Python package
 on:
   workflow_dispatch:
   push:
+  pull_request:
   schedule:
     - cron: "30 16 * * WED"
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  test:
+    name: Full suite - HA ${{ matrix.ha }}
+    # The pinned Python 3.14.4 toolcache is available for Ubuntu 24.04, not 26.04.
+    runs-on: ubuntu-24.04
     strategy:
-      max-parallel: 4
+      fail-fast: false
       matrix:
-        python-version: ["3.12"]
-
+        include:
+          - target: minimum
+            python: "3.12.13"
+            ha: "2025.1.4"
+            requirements: requirements.test.txt
+          - target: modern
+            python: "3.14.4"
+            ha: "2026.7.1"
+            requirements: requirements.test-modern.txt
+          - target: current
+            python: "3.14.4"
+            ha: "2026.11.1"
+            requirements: requirements.test-current.txt
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: ${{ matrix.python-version }}
-
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.test.txt
+        run: make deps REQUIREMENTS=${{ matrix.requirements }}
+      - name: Run full integration tests
+        run: make test
 
-      - name: Run pytest
-        run: |
-          pytest
+  quality:
+    name: Lint and type check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install development dependencies
+        run: make deps
+      - name: Run correctness lint and type checks
+        run: make lint typecheck
+
+  current-runtime-smoke:
+    name: Import smoke - HA 2026.11.1 (no harness)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install exact current runtime without a test harness
+        run: make deps REQUIREMENTS=requirements.smoke.txt
+      - name: Check imports and configuration schema
+        run: make smoke

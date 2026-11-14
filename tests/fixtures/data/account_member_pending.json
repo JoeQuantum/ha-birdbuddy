@@ -1,0 +1,42 @@
+{
+  "__typename": "Me",
+  "user": {
+    "__typename": "User",
+    "id": "account-b",
+    "name": "Fixture User account-b",
+    "email": "account-b@example.invalid",
+    "avatarUrl": "https://example.invalid/avatar/account-b",
+    "signInType": "EMAIL"
+  },
+  "settings": {
+    "__typename": "Settings",
+    "notificationDisabled": null
+  },
+  "feeders": [
+    {
+      "__typename": "FeederForMember",
+      "id": "feeder-a",
+      "name": "Fixture Feeder feeder-a",
+      "ownerName": "Fixture Owner",
+      "state": "ONLINE",
+      "housingType": "CLASSIC",
+      "version": "V2",
+      "locationCity": "Fixture City",
+      "locationCountry": "US",
+      "battery": null,
+      "signal": null,
+      "temperature": null,
+      "food": null,
+      "livestreamAccessStatus": "DENIED",
+      "supportsAudio": true,
+      "supportsWebRTC": false,
+      "supportsEnhancedLivestream": false,
+      "supportsLivestreamSnapshot": "UNAVAILABLE"
+    },
+    {
+      "__typename": "FeederForMemberPending",
+      "id": "feeder-pending",
+      "name": "Fixture Pending Feeder"
+    }
+  ]
+}

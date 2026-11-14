@@ -1,0 +1,56 @@
+{
+  "user": {
+    "avatarUrl": "https://example.invalid/asset-001",
+    "email": "fixture@example.invalid",
+    "id": "fixture-id-001",
+    "name": "Fixture name",
+    "signInType": "EMAIL",
+    "__typename": "User"
+  },
+  "settings": {
+    "notificationDisabled": null,
+    "__typename": "Settings"
+  },
+  "feeders": [
+    {
+      "battery": {
+        "charging": false,
+        "percentage": 94,
+        "state": "HIGH",
+        "__typename": "FeederMetricBattery"
+      },
+      "food": {
+        "state": "LOW",
+        "__typename": "FeederMetricFood"
+      },
+      "id": "fixture-id-002",
+      "name": "Fixture name",
+      "signal": {
+        "state": "MEDIUM",
+        "value": -64,
+        "__typename": "FeederMetricSignal"
+      },
+      "state": "READY_TO_STREAM",
+      "temperature": {
+        "value": 0,
+        "__typename": "FeederMetricTemperature"
+      },
+      "__typename": "FeederForOwner",
+      "availableFirmwareVersion": "1.8.1",
+      "firmwareVersion": "1.8.1",
+      "serialNumber": "fixture-id-003",
+      "invitationsAvailable": 9,
+      "offGrid": false,
+      "audioEnabled": true,
+      "powerProfile": "STANDARD_MODE",
+      "presenceUpdatedAt": "2026-07-09T00:11:15.555Z",
+      "members": [],
+      "location": {
+        "city": "Fixture location",
+        "country": "US",
+        "__typename": "Location"
+      }
+    }
+  ],
+  "__typename": "Me"
+}

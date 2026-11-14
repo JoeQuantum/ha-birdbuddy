@@ -1,0 +1,7 @@
+{
+  "__typename": "MediaImage",
+  "id": "expired-image",
+  "createdAt": "2026-01-01T12:00:00.000Z",
+  "thumbnailUrl": "https://example.invalid/feeder-a/expired-image.jpg?Expires=1",
+  "contentUrl": "https://example.invalid/feeder-a/expired-image.jpg?Expires=1"
+}

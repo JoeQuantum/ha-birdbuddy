@@ -1,6 +1,6 @@
 """Bird Buddy device"""
 
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from birdbuddy.feeder import Feeder, FeederDeviceVersion, FeederHousingType
 from .const import DOMAIN, MANUFACTURER
 
@@ -19,14 +19,19 @@ class BirdBuddyDevice(Feeder):
     @property
     def device_info(self) -> DeviceInfo:
         """The Home Assistant DeviceInfo"""
+        if self.get("__typename") not in {"FeederForOwner", "FeederForMember"}:
+            return DeviceInfo(
+                identifiers={(DOMAIN, self.id)},
+                manufacturer=MANUFACTURER,
+                name=self.name,
+            )
         return DeviceInfo(
             identifiers={(DOMAIN, self.id)},
             manufacturer=MANUFACTURER,
             model=_HOUSING_NAMES.get(self.housing_type, "Bird Buddy"),
             model_id=(
                 self.housing_type.value
-                if self.housing_type
-                and self.housing_type != FeederHousingType.UNKNOWN
+                if self.housing_type and self.housing_type != FeederHousingType.UNKNOWN
                 else None
             ),
             name=self.name,

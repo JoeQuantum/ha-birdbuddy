@@ -1,39 +1,117 @@
 {
-    "entity": {
-        "select": {
-            "metric_state": {
-                "state": {
-                    "high": "H\u00f6gt",
-                    "low": "L\u00e5g",
-                    "medium": "Medium"
-                }
-            }
-        },
-        "sensor": {
-            "feeder_state": {
-                "state": {
-                    "deep_sleep": "Sover",
-                    "factory_reset": "Fabriks\u00e5terst\u00e4llning",
-                    "firmware_update": "Firmwareuppdatering",
-                    "offline": "Offline",
-                    "off_grid": "Bortkopplad",
-                    "online": "Online",
-                    "out_of_feeder": "Kameran urtagen",
-                    "pending_factory_reset": "V\u00e4ntande fabriks\u00e5terst\u00e4llning",
-                    "pending_removal": "V\u00e4ntande borttagning",
-                    "ready_to_stream": "Klar",
-                    "streaming": "Str\u00f6mmar video",
-                    "taking_postcards": "Tar bild",
-                    "unknown": "Ok\u00e4nt"
-                }
-            },
-            "metric_state": {
-                "state": {
-                    "high": "H\u00f6gt",
-                    "low": "L\u00e5g",
-                    "medium": "Medium"
-                }
-            }
+  "entity": {
+    "select": {
+      "metric_state": {
+        "state": {
+          "high": "Högt",
+          "low": "Låg",
+          "medium": "Medium"
         }
+      },
+      "power_profile": {
+        "state": {
+          "frenzy_mode": "Frenzy-läge",
+          "standard_mode": "Standardläge",
+          "power_saver_mode": "Energisparläge",
+          "ultra_frenzy_mode": "Ultra Frenzy-läge"
+        }
+      }
+    },
+    "sensor": {
+      "feeder_state": {
+        "state": {
+          "deep_sleep": "Sover",
+          "factory_reset": "Fabriksåterställning",
+          "firmware_update": "Firmwareuppdatering",
+          "offline": "Offline",
+          "off_grid": "Bortkopplad",
+          "online": "Online",
+          "out_of_feeder": "Kameran urtagen",
+          "pending_factory_reset": "Väntande fabriksåterställning",
+          "pending_removal": "Väntande borttagning",
+          "ready_to_stream": "Klar",
+          "streaming": "Strömmar video",
+          "taking_postcards": "Tar bild",
+          "unknown": "Okänt"
+        }
+      },
+      "metric_state": {
+        "state": {
+          "high": "Högt",
+          "low": "Låg",
+          "medium": "Medium"
+        }
+      },
+      "last_sync": {
+        "name": "Senaste synkronisering"
+      }
+    },
+    "switch": {
+      "audio_enabled": {
+        "name": "Ljud aktiverat"
+      }
     }
+  },
+  "config": {
+    "step": {
+      "reauth_confirm": {
+        "title": "Autentisera Bird Buddy igen",
+        "description": "Ange inloggningsuppgifterna för samma Bird Buddy-konto.",
+        "data": {
+          "email": "E-post",
+          "password": "Lösenord"
+        }
+      },
+      "user": {
+        "title": "Ange dina inloggningsuppgifter för Bird Buddy",
+        "data": {
+          "email": "E-post",
+          "password": "Lösenord"
+        }
+      }
+    },
+    "error": {
+      "wrong_account": "Dessa inloggningsuppgifter tillhör ett annat Bird Buddy-konto.",
+      "cannot_connect": "Kunde inte ansluta",
+      "invalid_auth": "Ogiltiga inloggningsuppgifter",
+      "unknown": "Oväntat fel",
+      "social_auth_unsupported": "Det här kontot kräver inloggning via en social leverantör. Integrationen stöder inte den inloggningsmetoden."
+    },
+    "abort": {
+      "reauth_successful": "Autentiseringen lyckades",
+      "already_configured": "Kontot är redan konfigurerat"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bird Buddy-alternativ",
+        "data": {
+          "polling_interval": "Hämtningsintervall (minuter)"
+        },
+        "data_description": {
+          "polling_interval": "Intervall för hämtning av kontodata i minuter (1–20), standardvärde 10. Bearbetningen av vykort kan misslyckas oberoende av telemetrin."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "new_postcard": "Ett nytt vykort är klart"
+    }
+  },
+  "issues": {
+    "legacy_postcard_contract": {
+      "title": "Uppdatera Bird Buddy-automationer för vykort",
+      "description": "Det gamla vykortsflödet med report-token skickas inte längre. Använd birdbuddy_new_postcard och postcard_id. Det finns ingen verifierad motsvarighet till de gamla fälten för strategi, konfidens och sighting. Granska insamlingspolicyn och välj uttryckligen selection_policy: server innan du aktiverar insamling. Dina automationer har inte skrivits om."
+    },
+    "deprecated_postcard_aliases": {
+      "title": "Uppdatera fältnamn för Bird Buddy-åtgärder",
+      "description": "Ersätt postcard.id med postcard_id och share_media med share. Dessa likvärdiga alias finns kvar i versionerna 0.2 och 0.3 och planeras att tas bort i {removal_version}. Ange fortfarande selection_policy: server uttryckligen."
+    },
+    "postcard_intake": {
+      "title": "Leveransen av Bird Buddy-vykort behöver åtgärdas",
+      "description": "Vykortsbearbetningen rapporterade {error_type}. Fågelmatarens telemetri kan fortsätta. Kontrollera diagnostiken och dokumentationen om beständig händelselagring innan du försöker igen med misslyckade händelser eller insamlingsåtgärder med osäkert resultat. Åtgärder med osäkert resultat upprepas inte automatiskt."
+    }
+  }
 }

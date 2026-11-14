@@ -1,92 +1,117 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Device is already configured"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "email": "Email",
-                    "password": "Password"
-                },
-                "title": "Fill in your Bird Buddy login credentials"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Reauthentication was successful"
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "Bird Buddy options",
-                "data": {
-                    "polling_interval": "Polling interval (minutes)"
-                },
-                "data_description": {
-                    "polling_interval": "How often to poll Bird Buddy for new data, in minutes (1-20). Default is 10."
-                }
-            }
-        }
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error",
+      "wrong_account": "These credentials belong to a different Bird Buddy account.",
+      "social_auth_unsupported": "This account requires social sign-in. Social sign-in is not supported by this integration."
     },
-    "device_automation": {
-        "trigger_type": {
-            "new_postcard": "A new postcard is ready"
-        }
-    },
-    "entity": {
-        "select": {
-            "power_profile": {
-                "state": {
-                    "frenzy_mode": "Frenzy Mode",
-                    "standard_mode": "Standard Mode",
-                    "power_saver_mode": "Power Saving Mode",
-                    "ultra_frenzy_mode": "Ultra Frenzy Mode"
-                }
-            },
-            "metric_state": {
-                "state": {
-                    "high": "High",
-                    "low": "Low",
-                    "medium": "Medium"
-                }
-            }
+    "step": {
+      "user": {
+        "data": {
+          "email": "Email",
+          "password": "Password"
         },
-        "sensor": {
-            "last_sync": {
-                "name": "Last Sync"
-            },
-            "feeder_state": {
-                "state": {
-                    "deep_sleep": "Sleeping",
-                    "factory_reset": "Reset to Factory",
-                    "firmware_update": "Updating firmware",
-                    "off_grid": "Off-grid",
-                    "offline": "Offline",
-                    "online": "Online",
-                    "out_of_feeder": "Out of feeder",
-                    "pending_factory_reset": "Factory reset pending",
-                    "pending_removal": "Pending removal",
-                    "ready_to_stream": "Ready",
-                    "streaming": "Streaming",
-                    "taking_postcards": "Taking postcards",
-                    "unknown": "Unknown"
-                }
-            },
-            "metric_state": {
-                "state": {
-                    "high": "High",
-                    "low": "Low",
-                    "medium": "Medium"
-                }
-            }
-        },
-        "switch": {
-            "audio_enabled": {
-                "name": "Audio Enabled"
-            }
+        "title": "Fill in your Bird Buddy login credentials"
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Bird Buddy",
+        "description": "Enter credentials for the same Bird Buddy account.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
         }
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bird Buddy options",
+        "data": {
+          "polling_interval": "Polling interval (minutes)"
+        },
+        "data_description": {
+          "polling_interval": "Account polling interval in minutes (1–20), default 10. Postcard processing can fail independently of feeder telemetry."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "new_postcard": "A new postcard is ready"
+    }
+  },
+  "entity": {
+    "select": {
+      "power_profile": {
+        "state": {
+          "frenzy_mode": "Frenzy Mode",
+          "standard_mode": "Standard Mode",
+          "power_saver_mode": "Power Saving Mode",
+          "ultra_frenzy_mode": "Ultra Frenzy Mode"
+        }
+      },
+      "metric_state": {
+        "state": {
+          "high": "High",
+          "low": "Low",
+          "medium": "Medium"
+        }
+      }
+    },
+    "sensor": {
+      "last_sync": {
+        "name": "Last Sync"
+      },
+      "feeder_state": {
+        "state": {
+          "deep_sleep": "Sleeping",
+          "factory_reset": "Reset to Factory",
+          "firmware_update": "Updating firmware",
+          "off_grid": "Off-grid",
+          "offline": "Offline",
+          "online": "Online",
+          "out_of_feeder": "Out of feeder",
+          "pending_factory_reset": "Factory reset pending",
+          "pending_removal": "Pending removal",
+          "ready_to_stream": "Ready",
+          "streaming": "Streaming",
+          "taking_postcards": "Taking postcards",
+          "unknown": "Unknown"
+        }
+      },
+      "metric_state": {
+        "state": {
+          "high": "High",
+          "low": "Low",
+          "medium": "Medium"
+        }
+      }
+    },
+    "switch": {
+      "audio_enabled": {
+        "name": "Audio Enabled"
+      }
+    }
+  },
+  "issues": {
+    "legacy_postcard_contract": {
+      "title": "Update Bird Buddy postcard automations",
+      "description": "The report-token postcard workflow is no longer emitted. Use birdbuddy_new_postcard and postcard_id. Legacy strategy, confidence and sighting inputs have no verified equivalent; review the collection policy and explicitly choose selection_policy: server before enabling collection. Your automations have not been rewritten."
+    },
+    "deprecated_postcard_aliases": {
+      "title": "Update Bird Buddy action field names",
+      "description": "Replace postcard.id with postcard_id and share_media with share. These equivalent aliases remain available through versions 0.2 and 0.3 and are scheduled for removal in {removal_version}. Keep selection_policy: server explicit."
+    },
+    "postcard_intake": {
+      "title": "Bird Buddy postcard delivery needs attention",
+      "description": "Postcard processing reported {error_type}. Feeder telemetry can continue. Check diagnostics and the durable intake documentation before retrying failed events or uncertain collection actions. No uncertain action is automatically repeated."
+    }
+  }
 }

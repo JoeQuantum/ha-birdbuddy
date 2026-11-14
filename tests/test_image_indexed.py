@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from birdbuddy.media import Media
+from birdbuddy.birds import Species
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 from custom_components.birdbuddy.image import (
     BirdBuddyIndexedRecentVisitorImageEntity,
 )
+from custom_components.birdbuddy.device import BirdBuddyDevice
 from custom_components.birdbuddy.visitors import RecentVisitor
 
 
@@ -21,14 +25,21 @@ def _make_indexed(index: int) -> BirdBuddyIndexedRecentVisitorImageEntity:
     entity._attr_image_last_updated = None
     entity._attr_entity_picture = None
     entity._cached_image = None
-    entity.feeder = SimpleNamespace(id="f1", name="Backyard")
+    entity.feeder = BirdBuddyDevice({"id": "f1", "name": "Backyard"})
     return entity
 
 
 def _entry(url: str, *, species: str | None = None) -> RecentVisitor:
     return RecentVisitor(
-        media=SimpleNamespace(content_url=url, thumbnail_url=url),
-        species=SimpleNamespace(name=species) if species else None,
+        media=Media(
+            {
+                "id": url,
+                "__typename": "MediaImage",
+                "contentUrl": url,
+                "thumbnailUrl": url,
+            }
+        ),
+        species=Species({"id": species, "name": species}) if species else None,
         created_at=datetime(2026, 5, 30, 12, 0, 0, tzinfo=timezone.utc),
     )
 
@@ -49,16 +60,12 @@ def test_indexed_entity_picks_correct_position() -> None:
     ]
 
     entity2 = _make_indexed(2)
-    with patch.object(
-        BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"
-    ):
+    with patch.object(BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"):
         entity2._on_recent_visitor(_visitors(recent))
     assert entity2._attr_image_url == "https://cdn.example.com/1.jpg"
 
     entity3 = _make_indexed(3)
-    with patch.object(
-        BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"
-    ):
+    with patch.object(BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"):
         entity3._on_recent_visitor(_visitors(recent))
     assert entity3._attr_image_url == "https://cdn.example.com/2.jpg"
 
@@ -73,9 +80,7 @@ def test_indexed_entity_clears_when_position_unavailable() -> None:
 
     recent = [_entry("https://cdn.example.com/0.jpg", species="Cardinal")]
 
-    with patch.object(
-        BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"
-    ):
+    with patch.object(BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"):
         entity._on_recent_visitor(_visitors(recent))
 
     assert entity._attr_image_url is None
@@ -88,9 +93,7 @@ def test_indexed_entity_empty_recent_is_safe() -> None:
     not raise."""
     entity = _make_indexed(2)
 
-    with patch.object(
-        BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"
-    ):
+    with patch.object(BirdBuddyIndexedRecentVisitorImageEntity, "async_write_ha_state"):
         entity._on_recent_visitor(_visitors([]))
 
     assert entity._attr_image_url is None
@@ -111,14 +114,17 @@ def test_indexed_entity_unique_id_and_name_follow_index() -> None:
         self.coordinator = coordinator
         self._attr_device_info = feeder.device_info
 
-    with patch(
-        "custom_components.birdbuddy.image.ImageEntity.__init__", return_value=None
-    ), patch(
-        "custom_components.birdbuddy.entity.BirdBuddyMixin.__init__",
-        _fake_mixin_init,
+    with (
+        patch(
+            "custom_components.birdbuddy.image.ImageEntity.__init__", return_value=None
+        ),
+        patch(
+            "custom_components.birdbuddy.entity.BirdBuddyMixin.__init__",
+            _fake_mixin_init,
+        ),
     ):
         entity = BirdBuddyIndexedRecentVisitorImageEntity(
-            MagicMock(), feeder, MagicMock(), index=3
+            MagicMock(), cast(BirdBuddyDevice, feeder), MagicMock(), index=3
         )
 
     assert entity._attr_unique_id == "abc123-recent-image-3"

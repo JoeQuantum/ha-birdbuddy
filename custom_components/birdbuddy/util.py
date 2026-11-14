@@ -1,25 +1,47 @@
 """Bird Buddy utilities"""
 
-from birdbuddy.feed import FeedNode
+from collections.abc import Mapping
+from urllib.parse import urlsplit
 
-from .const import LOGGER
+from birdbuddy.feed import FeedNode
+from birdbuddy.media import Media, is_media_expired
+from birdbuddy.visits import normalize_visit
+
+
+def media_preview_url(media: Media | None) -> str | None:
+    """Return a current still-image preview, never video or unknown content."""
+    if media is None:
+        return None
+    if isinstance(media, Mapping):
+        kind = media.get("__typename")
+        if kind not in {"MediaImage", "MediaVideo"}:
+            return None
+        candidates = [media.get("thumbnailUrl")]
+        if kind == "MediaImage":
+            candidates.insert(0, media.get("contentUrl"))
+    else:
+        candidates = [
+            getattr(media, "content_url", None),
+            getattr(media, "thumbnail_url", None),
+        ]
+    for url in candidates:
+        if not isinstance(url, str) or not url:
+            continue
+        try:
+            parsed = urlsplit(url)
+            if parsed.scheme not in {"https", "http"} or not parsed.netloc:
+                continue
+            if is_media_expired(url):
+                continue
+        except (TypeError, ValueError, OverflowError):
+            continue
+        return url
+    return None
 
 
 def _media_list(item: FeedNode) -> list[dict]:
-    """Return the media dicts on a feed node, normalizing the two API shapes.
-
-    pybirdbuddy's FEED query returns media differently depending on the node
-    type: `FeedItemSpeciesSighting` and `FeedItemMysteryVisitor*` expose a
-    single `media` object, while `FeedItemCollectedPostcard` exposes a `medias`
-    array. Earlier code only read the `medias` array, so sighting and mystery
-    nodes — the *only* kind a feeder without auto-ID ever produces — never
-    matched and the recent-visitor list always came back empty (#7).
-    """
-    if medias := item.get("medias"):
-        return list(medias)
-    if media := item.get("media"):
-        return [media]
-    return []
+    """Expose the canonical singular/plural/video normalization to legacy callers."""
+    return [media.to_dict() for media in normalize_visit(item).medias]
 
 
 def _find_media(
@@ -28,49 +50,18 @@ def _find_media(
     *,
     require_feeder_match: bool = True,
 ) -> list[FeedNode]:
-    """Return feed items that carry an image from this feeder.
+    """Return attributed image previews without URL-substring or sole-feeder guesses.
 
-    A `species` is NOT required: mystery (unrecognized) visitors — the only
-    kind a feeder without auto-ID produces — have media but no species, and
-    must still surface as recent visitors with `species=None`. See issue #7.
-
-    The single matched image is attached back onto the node as `media`.
-
-    The feed has no per-item feeder field, so media is attributed to a feeder by
-    matching its id inside the (signed) thumbnail URL. `require_feeder_match`
-    can be turned off by callers that have already established the media belongs
-    to this feeder (e.g. the account has a single feeder), since that URL
-    heuristic does not hold on every account.
+    The former opt-out flag remains accepted for call compatibility but cannot
+    override missing or conflicting feeder identity. New consumers use Visit
+    directly so video-only and media-free visits remain part of their history.
     """
-    found: list[FeedNode] = []
+    del require_feeder_match
+    found = []
     for item in items:
-        if not item:
-            continue
-        images = [
-            m
-            for m in _media_list(item)
-            if m and m.get("__typename") == "MediaImage"
-        ]
-        if not images:
-            continue
-        if require_feeder_match:
-            mine = [m for m in images if feeder_id in m.get("thumbnailUrl", "")]
-            if not mine:
-                # Images present but none attributable to this feeder by URL —
-                # the most likely place a still-empty recent-visitor list would
-                # originate. Log it so it shows up in a debug capture.
-                LOGGER.debug(
-                    "Feed node %s has %d image(s) but none match feeder %s by "
-                    "URL; skipping. First thumbnail: %s",
-                    item.get("id"),
-                    len(images),
-                    feeder_id,
-                    images[0].get("thumbnailUrl"),
-                )
-                continue
-        else:
-            mine = images
-        found.append(item | {"media": next(iter(mine), None)})
+        visit = normalize_visit(item, known_feeder_ids=(feeder_id,))
+        if visit.feeder_id == feeder_id and (image := visit.representative_image):
+            found.append(FeedNode(visit.raw | {"media": image.to_dict()}))
     return found
 
 
@@ -104,9 +95,7 @@ def _slim_sighting_node(sighting: dict) -> dict:
         "__typename": sighting.get("__typename"),
         "matchTokens": sighting.get("matchTokens", []),
         "species": _slim_species(sighting.get("species")),
-        "suggestions": [
-            _slim_suggestion(s) for s in sighting.get("suggestions", [])
-        ],
+        "suggestions": [_slim_suggestion(s) for s in sighting.get("suggestions", [])],
     }
 
 
@@ -129,9 +118,7 @@ def slim_event_payload(postcard_data: dict, sighting_data: dict) -> dict:
         },
         "sightingReport": {
             "reportToken": report.get("reportToken"),
-            "sightings": [
-                _slim_sighting_node(s) for s in report.get("sightings", [])
-            ],
+            "sightings": [_slim_sighting_node(s) for s in report.get("sightings", [])],
         },
     }
     if medias := sighting_data.get("medias"):

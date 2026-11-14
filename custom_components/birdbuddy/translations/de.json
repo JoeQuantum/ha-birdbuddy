@@ -1,63 +1,117 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Ger\u00e4t ist bereits konfiguriert"
-        },
-        "error": {
-            "cannot_connect": "Verbindung fehlgeschlagen",
-            "invalid_auth": "Ung\u00fcltige Authentifizierung",
-            "unknown": "Unerwarteter Fehler"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "email": "Email",
-                    "password": "Passwort"
-                },
-                "title": "Bitte gib deine Bird Buddy-Anmeldedaten ein"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits eingerichtet",
+      "reauth_successful": "Erneute Authentifizierung erfolgreich"
     },
-    "device_automation": {
-        "trigger_type": {
-            "new_postcard": "Eine neue Postkarte ist bereit"
-        }
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "invalid_auth": "Ungültige Authentifizierung",
+      "unknown": "Unerwarteter Fehler",
+      "wrong_account": "Diese Zugangsdaten gehören zu einem anderen Bird-Buddy-Konto.",
+      "social_auth_unsupported": "Dieses Konto erfordert eine Anmeldung über einen sozialen Anbieter. Diese Anmeldung wird von dieser Integration nicht unterstützt."
     },
-    "entity": {
-        "select": {
-            "metric_state": {
-                "state": {
-                    "high": "Hoch",
-                    "low": "Niedrig",
-                    "medium": "Mittel"
-                }
-            }
+    "step": {
+      "user": {
+        "data": {
+          "email": "Email",
+          "password": "Passwort"
         },
-        "sensor": {
-            "feeder_state": {
-                "state": {
-                    "deep_sleep": "Schlafend",
-                    "factory_reset": "Zur\u00fccksetzen auf Werkseinstellung",
-                    "firmware_update": "Aktualisierung der Firmware",
-                    "off_grid": "Vom Netz getrennt",
-                    "offline": "Offline",
-                    "online": "Online",
-                    "out_of_feeder": "Aus dem Vogelf\u00fctterer",
-                    "pending_factory_reset": "Werksr\u00fcckstellung steht an",
-                    "pending_removal": "Ausstehende Entnahme",
-                    "ready_to_stream": "Bereit f\u00fcr Besuch",
-                    "streaming": "Streaming",
-                    "taking_postcards": "Fotos machen",
-                    "unknown": "Unbekannt"
-                }
-            },
-            "metric_state": {
-                "state": {
-                    "high": "Hoch",
-                    "low": "Niedrig",
-                    "medium": "Mittel"
-                }
-            }
+        "title": "Bitte gib deine Bird Buddy-Anmeldedaten ein"
+      },
+      "reauth_confirm": {
+        "title": "Bird Buddy erneut authentifizieren",
+        "description": "Gib die Zugangsdaten für dasselbe Bird-Buddy-Konto ein.",
+        "data": {
+          "email": "Email",
+          "password": "Passwort"
         }
+      }
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "new_postcard": "Eine neue Postkarte ist bereit"
+    }
+  },
+  "entity": {
+    "select": {
+      "metric_state": {
+        "state": {
+          "high": "Hoch",
+          "low": "Niedrig",
+          "medium": "Mittel"
+        }
+      },
+      "power_profile": {
+        "state": {
+          "frenzy_mode": "Frenzy-Modus",
+          "standard_mode": "Standardmodus",
+          "power_saver_mode": "Energiesparmodus",
+          "ultra_frenzy_mode": "Ultra-Frenzy-Modus"
+        }
+      }
+    },
+    "sensor": {
+      "feeder_state": {
+        "state": {
+          "deep_sleep": "Schlafend",
+          "factory_reset": "Zurücksetzen auf Werkseinstellung",
+          "firmware_update": "Aktualisierung der Firmware",
+          "off_grid": "Vom Netz getrennt",
+          "offline": "Offline",
+          "online": "Online",
+          "out_of_feeder": "Aus dem Vogelfütterer",
+          "pending_factory_reset": "Werksrückstellung steht an",
+          "pending_removal": "Ausstehende Entnahme",
+          "ready_to_stream": "Bereit für Besuch",
+          "streaming": "Streaming",
+          "taking_postcards": "Fotos machen",
+          "unknown": "Unbekannt"
+        }
+      },
+      "metric_state": {
+        "state": {
+          "high": "Hoch",
+          "low": "Niedrig",
+          "medium": "Mittel"
+        }
+      },
+      "last_sync": {
+        "name": "Letzte Synchronisierung"
+      }
+    },
+    "switch": {
+      "audio_enabled": {
+        "name": "Audio aktiviert"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bird Buddy-Optionen",
+        "data": {
+          "polling_interval": "Abfrageintervall (Minuten)"
+        },
+        "data_description": {
+          "polling_interval": "Intervall für Kontoabfragen in Minuten (1–20), standardmäßig 10. Die Postkartenverarbeitung kann unabhängig von der Telemetrie fehlschlagen."
+        }
+      }
+    }
+  },
+  "issues": {
+    "legacy_postcard_contract": {
+      "title": "Bird Buddy-Postkartenautomationen aktualisieren",
+      "description": "Der alte Postkartenablauf mit Report-Token wird nicht mehr ausgegeben. Verwende birdbuddy_new_postcard und postcard_id. Für die bisherigen Strategie-, Konfidenz- und Sighting-Eingaben gibt es keine bestätigte Entsprechung. Prüfe die Sammelrichtlinie und wähle ausdrücklich selection_policy: server, bevor du das Sammeln aktivierst. Deine Automationen wurden nicht umgeschrieben."
+    },
+    "deprecated_postcard_aliases": {
+      "title": "Feldnamen der Bird Buddy-Aktionen aktualisieren",
+      "description": "Ersetze postcard.id durch postcard_id und share_media durch share. Diese gleichwertigen Aliasnamen bleiben in den Versionen 0.2 und 0.3 verfügbar und sollen in {removal_version} entfernt werden. Gib selection_policy: server weiterhin ausdrücklich an."
+    },
+    "postcard_intake": {
+      "title": "Die Bird Buddy-Postkartenzustellung benötigt Aufmerksamkeit",
+      "description": "Die Postkartenverarbeitung meldete {error_type}. Die Feeder-Telemetrie kann weiterlaufen. Prüfe die Diagnose und die Dokumentation zur dauerhaften Ereignisverarbeitung, bevor du fehlgeschlagene Ereignisse oder Sammelaktionen mit unklarem Ergebnis wiederholst. Aktionen mit unklarem Ergebnis werden nicht automatisch wiederholt."
+    }
+  }
 }

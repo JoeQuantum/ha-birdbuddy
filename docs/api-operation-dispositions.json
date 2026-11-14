@@ -1,0 +1,2356 @@
+{
+  "review_date": "2026-11-13",
+  "catalog_schema_sha256": "73ef0188e2c3161c9ad4b89debf4969335465f974b390912b5b15b55513a5f4a",
+  "client_status_is_catalog_baseline": true,
+  "current_disposition": "See api-capabilities.md; selected-next features are not claimed implemented by this inventory.",
+  "operations": [
+    {
+      "operation": "Query.authIsEmailTaken",
+      "signature": "Query.authIsEmailTaken(isEmailTakenInput: IsEmailTakenInput!): TakenResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.authIsNameTaken",
+      "signature": "Query.authIsNameTaken(isNameTakenInput: IsNameTakenInput!): TakenResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collection",
+      "signature": "Query.collection(collectionId: ID!): AnyCollection!",
+      "domain": "collections",
+      "disposition": "core",
+      "task_ids": [
+        "BB-08",
+        "BB-18"
+      ],
+      "rationale": "Resolve media and browse paginated account collections with fresh URLs and scoped identity.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionBySpeciesId",
+      "signature": "Query.collectionBySpeciesId(speciesId: ID!): AnyCollection!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionCommunityMediaBySpeciesId",
+      "signature": "Query.collectionCommunityMediaBySpeciesId(after: String, before: String, first: Int, last: Int, orderBy: MediaOrderByInput, speciesId: ID!): CollectionMediaConnection!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionMedia",
+      "signature": "Query.collectionMedia(mediaId: ID!): CollectionMedia!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionSpeciesList",
+      "signature": "Query.collectionSpeciesList(after: String, before: String, filter: CollectionSpeciesListFilterInput, first: Int, last: Int, orderBy: CollectionSpeciesListOrderByInput): CollectionSpeciesListConnection!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionSpeciesNearbyList",
+      "signature": "Query.collectionSpeciesNearbyList(after: String, before: String, filter: CollectionSpeciesNearbyListFilterInput, first: Int, last: Int, orderBy: CollectionSpeciesNearbyListOrderByInput): CollectionSpeciesNearbyListResult!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.collectionSpeciesNearbySummary",
+      "signature": "Query.collectionSpeciesNearbySummary(): CollectionSpeciesNearbySummary!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.complianceRequirements",
+      "signature": "Query.complianceRequirements(): ComplianceRequirements",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.externalServiceSubscriptionWithDetails",
+      "signature": "Query.externalServiceSubscriptionWithDetails(id: ID!): ExternalServiceSubscriptionWithDetails!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feedItem",
+      "signature": "Query.feedItem(feedItemId: ID!): FeedItem!",
+      "domain": "postcards",
+      "disposition": "core",
+      "task_ids": [
+        "BB-08",
+        "BB-10",
+        "BB-11"
+      ],
+      "rationale": "Complete read-only media/preview details and confidence-policy investigation; no automatic collection.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feeder",
+      "signature": "Query.feeder(feederId: ID!): AnyFeeder!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-08",
+        "BB-19",
+        "BB-21"
+      ],
+      "rationale": "Read authoritative feeder state/capabilities for correct account routing and control behavior.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederInvitation",
+      "signature": "Query.feederInvitation(token: String!): FeederInvitation!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederToggleAudioCheck",
+      "signature": "Query.feederToggleAudioCheck(feederId: ID!): FeederToggleAudioCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederToggleHighQualityVideoCheck",
+      "signature": "Query.feederToggleHighQualityVideoCheck(feederId: ID!): FeederToggleHighQualityVideoCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederToggleSmartEnergyCheck",
+      "signature": "Query.feederToggleSmartEnergyCheck(feederId: ID!): FeederToggleSmartEnergyCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-26"
+      ],
+      "rationale": "New Smart Energy union/state/control support after hardware validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederUpdateCameraFieldOfViewCheck",
+      "signature": "Query.feederUpdateCameraFieldOfViewCheck(feederId: ID!): FeederUpdateCameraFieldOfViewCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederUpdatePowerProfileCheck",
+      "signature": "Query.feederUpdatePowerProfileCheck(feederId: ID!): FeederUpdatePowerProfileCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.feederUpdateVideoQualityCheck",
+      "signature": "Query.feederUpdateVideoQualityCheck(feederId: ID!): FeederUpdateVideoQualityCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.inferenceExternalImageRecognition",
+      "signature": "Query.inferenceExternalImageRecognition(input: InferenceExternalImageRecognitionInput!, mediaId: ID!): InferenceExternalImageRecognitionResult!",
+      "domain": "inference_conversation",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Conversation, generic recognition and feedback are distinct mutating/product workflows, not necessary for the core migration.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.inferenceExternalPostcardConversationAvailableQuestions",
+      "signature": "Query.inferenceExternalPostcardConversationAvailableQuestions(feedItemId: ID!): [InferenceExternalPostcardConversationQuestion!]!",
+      "domain": "inference_conversation",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Conversation, generic recognition and feedback are distinct mutating/product workflows, not necessary for the core migration.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.locationDetailsFromCoordinates",
+      "signature": "Query.locationDetailsFromCoordinates(locationDetailsFromCoordinatesInput: LocationDetailsFromCoordinatesInput!): Location",
+      "domain": "locations",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Read existing approximate location only where required; geocoding and location-changing administration are not routine sensors.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.locationGeoIp",
+      "signature": "Query.locationGeoIp(): Location",
+      "domain": "locations",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Read existing approximate location only where required; geocoding and location-changing administration are not routine sensors.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.locationPlacesSearchAutocomplete",
+      "signature": "Query.locationPlacesSearchAutocomplete(locationPlacesSearchAutocomplete: LocationPlacesSearchAutocompleteInput!): [LocationPlace!]!",
+      "domain": "locations",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Read existing approximate location only where required; geocoding and location-changing administration are not routine sensors.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.maintenance",
+      "signature": "Query.maintenance(): Maintenance!",
+      "domain": "profile_runtime",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-22"
+      ],
+      "rationale": "Consider a small read-only maintenance diagnostic when it improves failure attribution.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.me",
+      "signature": "Query.me(): Me!",
+      "domain": "profile_runtime",
+      "disposition": "core",
+      "task_ids": [
+        "BB-06",
+        "BB-08",
+        "BB-13",
+        "BB-16",
+        "BB-18",
+        "BB-25",
+        "BB-29"
+      ],
+      "rationale": "Core account aggregation already used; new nested selections are staged by their feature tasks.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.media",
+      "signature": "Query.media(mediaId: ID!): Media!",
+      "domain": "media",
+      "disposition": "core",
+      "task_ids": [
+        "BB-08",
+        "BB-18"
+      ],
+      "rationale": "Resolve media and browse paginated account collections with fresh URLs and scoped identity.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaCommunityItemsForExternalService",
+      "signature": "Query.mediaCommunityItemsForExternalService(after: String, before: String, filter: MediaCommunityItemFilterInput, first: Int, last: Int, orderBy: MediaCommunityItemOrderByInput): MediaCommunityItemConnection!",
+      "domain": "community",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "External-service surfaces are not established as useful/permitted HA account capabilities; one is deprecated.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaCommunityVideos",
+      "signature": "Query.mediaCommunityVideos(after: String, before: String, first: Int, last: Int, seenMediaIds: [ID!], withTrending: Boolean): MediaCommunityVideoConnection!",
+      "domain": "community",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-32"
+      ],
+      "rationale": "Read-only community/curated views may be useful after core stability; external-service/admin-like surfaces are deferred.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaCommunityVideosForExternalService",
+      "signature": "Query.mediaCommunityVideosForExternalService(after: String, before: String, filter: MediaCommunityVideoOrderedFilterInput, first: Int, last: Int, orderBy: MediaCommunityVideoOrderByInput): MediaCommunityVideoConnection!",
+      "domain": "community",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "External-service surfaces are not established as useful/permitted HA account capabilities; one is deprecated.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaCuratedVideo",
+      "signature": "Query.mediaCuratedVideo(mediaCuratedVideoId: ID!): MediaCuratedVideo!",
+      "domain": "community",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-32"
+      ],
+      "rationale": "Read-only community/curated views may be useful after core stability; external-service/admin-like surfaces are deferred.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaCuratedVideos",
+      "signature": "Query.mediaCuratedVideos(after: String, before: String, first: Int, last: Int): MediaCuratedVideoConnection!",
+      "domain": "community",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-32"
+      ],
+      "rationale": "Read-only community/curated views may be useful after core stability; external-service/admin-like surfaces are deferred.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaIdentifications",
+      "signature": "Query.mediaIdentifications(after: String, before: String, first: Int, last: Int): MediaIdentificationConnection!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaSpeciesNameSuggestions",
+      "signature": "Query.mediaSpeciesNameSuggestions(speciesId: ID!): MediaSpeciesNameSuggestions!",
+      "domain": "named_birds",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-29"
+      ],
+      "rationale": "Read individual-bird data first; optional rename/recognition actions require typed-error and account validation. Feedback/assignment is separate.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.mediaViewerForExternalService",
+      "signature": "Query.mediaViewerForExternalService(after: String, before: String, filter: MediaViewerFilterInput, first: Int, last: Int, orderBy: MediaViewerOrderByInput): MediaViewerConnection!",
+      "domain": "community",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "External-service surfaces are not established as useful/permitted HA account capabilities; one is deprecated.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.placeDetails",
+      "signature": "Query.placeDetails(placeDetailsInput: PlaceDetailsInput!): Location",
+      "domain": "locations",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Read existing approximate location only where required; geocoding and location-changing administration are not routine sensors.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.postcardMediasDetails",
+      "signature": "Query.postcardMediasDetails(feedItemId: ID!): [PostcardMedia!]!",
+      "domain": "postcards",
+      "disposition": "core",
+      "task_ids": [
+        "BB-08",
+        "BB-10",
+        "BB-11"
+      ],
+      "rationale": "Complete read-only media/preview details and confidence-policy investigation; no automatic collection.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.profanityCheck",
+      "signature": "Query.profanityCheck(profanityCheckInput: ProfanityCheckInput!): SuccessResult!",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.referralCodeExists",
+      "signature": "Query.referralCodeExists(input: ReferralCodeExistsInput!): ReferralCodeExistsResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.remoteFeeder",
+      "signature": "Query.remoteFeeder(feederId: ID!): RemoteFeeder!",
+      "domain": "remote_feeders",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-32"
+      ],
+      "rationale": "Read-only discovery views are optional; connection/switch mutations require explicit later scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.remoteFeeders",
+      "signature": "Query.remoteFeeders(after: String, before: String, first: Int, last: Int): RemoteFeederConnection!",
+      "domain": "remote_feeders",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-32"
+      ],
+      "rationale": "Read-only discovery views are optional; connection/switch mutations require explicit later scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.sightingReportPreview",
+      "signature": "Query.sightingReportPreview(inferenceResults: String!): SightingReportPreview!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.similarMedia",
+      "signature": "Query.similarMedia(similarMediaInput: SimilarMediaInput!): SimilarMedia!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.species",
+      "signature": "Query.species(speciesId: ID!): AnySpecies!",
+      "domain": "species",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Species identity/search/reference data is optional; no new classifier or recognition guarantee is implied.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.speciesByIds",
+      "signature": "Query.speciesByIds(speciesIds: [ID!]!): [Species!]!",
+      "domain": "species",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Species identity/search/reference data is optional; no new classifier or recognition guarantee is implied.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.speciesLocalToFeeder",
+      "signature": "Query.speciesLocalToFeeder(feederId: ID!): [CollectionSpecies!]!",
+      "domain": "species",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Species identity/search/reference data is optional; no new classifier or recognition guarantee is implied.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.speciesSearch",
+      "signature": "Query.speciesSearch(searchQuery: String!): [AnySpecies!]!",
+      "domain": "species",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Species identity/search/reference data is optional; no new classifier or recognition guarantee is implied.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.userFeederReport",
+      "signature": "Query.userFeederReport(end: DateTime, feederId: ID, start: DateTime, userId: ID!): UserFeederReport!",
+      "domain": "reports",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-30"
+      ],
+      "rationale": "Validate explicit account/feeder periods, quotas and unavailable cases before low-frequency analytics.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.weeklyRecapForUser",
+      "signature": "Query.weeklyRecapForUser(userId: ID!): WeeklyRecapForUserResult!",
+      "domain": "reports",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-30"
+      ],
+      "rationale": "Validate explicit account/feeder periods, quotas and unavailable cases before low-frequency analytics.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Query.yearInReviewForUser",
+      "signature": "Query.yearInReviewForUser(userId: ID!): YearInReviewForUserResult!",
+      "domain": "reports",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-30"
+      ],
+      "rationale": "Validate explicit account/feeder periods, quotas and unavailable cases before low-frequency analytics.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.alexaAuthCode",
+      "signature": "Mutation.alexaAuthCode(redirectUri: String!): String!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.alexaEventAuthorization",
+      "signature": "Mutation.alexaEventAuthorization(code: String!): Success!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.alexaLink",
+      "signature": "Mutation.alexaLink(alexaAccountStatusInput: AlexaAccountStatusInput!): AlexaAccountResult!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.alexaRemoveDeviceEndpoint",
+      "signature": "Mutation.alexaRemoveDeviceEndpoint(feederId: String!): AlexaRemoveDeviceEndpointResponse!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.alexaUnlink",
+      "signature": "Mutation.alexaUnlink(): AlexaUnlinkResult!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authChangePassword",
+      "signature": "Mutation.authChangePassword(changePasswordInput: ChangePasswordInput!): AuthResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authEmailSignIn",
+      "signature": "Mutation.authEmailSignIn(emailSignInInput: EmailSignInInput!): AuthEmailResult!",
+      "domain": "account",
+      "disposition": "core",
+      "task_ids": [
+        "BB-05",
+        "BB-06"
+      ],
+      "rationale": "Harden the currently implemented auth/reauth path and typed failures.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authEmailSignUp",
+      "signature": "Mutation.authEmailSignUp(emailSignUpInput: EmailSignUpInput!): AuthEmailResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authForgotPassword",
+      "signature": "Mutation.authForgotPassword(forgotPasswordInput: ForgotPasswordInput!): SuccessResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authRefreshToken",
+      "signature": "Mutation.authRefreshToken(refreshTokenInput: RefreshTokenInput!): Auth!",
+      "domain": "account",
+      "disposition": "core",
+      "task_ids": [
+        "BB-05",
+        "BB-06"
+      ],
+      "rationale": "Harden the currently implemented auth/reauth path and typed failures.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authSignOut",
+      "signature": "Mutation.authSignOut(): Success!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authSocialLink",
+      "signature": "Mutation.authSocialLink(socialLinkInput: SocialLinkInput!): AuthResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authSocialSignIn",
+      "signature": "Mutation.authSocialSignIn(socialSignInInput: SocialSignInInput!): AuthResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authSocialSignUp",
+      "signature": "Mutation.authSocialSignUp(socialSignUpInput: SocialSignUpInput!): AuthResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authUserDelete",
+      "signature": "Mutation.authUserDelete(): Success!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authUserMarkOnboardingCompleted",
+      "signature": "Mutation.authUserMarkOnboardingCompleted(): AuthUserMarkOnboardingCompletedResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authUserUpdate",
+      "signature": "Mutation.authUserUpdate(authUserUpdateInput: AuthUserUpdateInput!): UserResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.authUserUpdateLocation",
+      "signature": "Mutation.authUserUpdateLocation(input: AuthUserUpdateLocationInput!): AuthUserUpdateLocationResult!",
+      "domain": "account",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Additional account lifecycle and social-provider exchange are outside the core telemetry/migration scope; retain as evidence-backed future requests.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.betaLabsFeatureUserSettingUpdate",
+      "signature": "Mutation.betaLabsFeatureUserSettingUpdate(input: BetaLabsFeatureUserSettingUpdateInput!): BetaLabsFeatureUserSettingUpdateResult!",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionAssignMultipleCoverMedia",
+      "signature": "Mutation.collectionAssignMultipleCoverMedia(collectionAssignMultipleCoverMediaInput: CollectionAssignMultipleCoverMediaInput!): Success!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionAssignMultipleCoverMediaUndo",
+      "signature": "Mutation.collectionAssignMultipleCoverMediaUndo(collectionAssignMultipleCoverMediaUndoInput: CollectionAssignMultipleCoverMediaUndoInput!): Success!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionMarkSeen",
+      "signature": "Mutation.collectionMarkSeen(collectionId: ID!): Success!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionMediaLike",
+      "signature": "Mutation.collectionMediaLike(collectionMediaLikeInput: CollectionMediaLikeInput!): Success!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionMediaLinkShare",
+      "signature": "Mutation.collectionMediaLinkShare(collectionMediaLinkShareInput: CollectionMediaLinkShareInput, mediaId: ID!): CollectionMediaLinkShareResult!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionMediaWrongBird",
+      "signature": "Mutation.collectionMediaWrongBird(collectionMediaWrongBirdInput: CollectionMediaWrongBirdInput!): CollectionMediaWrongBirdResult!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.collectionSightingCollect",
+      "signature": "Mutation.collectionSightingCollect(input: CollectionSightingCollectInput!): CollectionSightingCollectResult!",
+      "domain": "collections",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-18",
+        "BB-28",
+        "BB-31"
+      ],
+      "rationale": "Preserve account collections; additional curation actions are opt-in and require their own validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.externalServiceSubscriptionCancel",
+      "signature": "Mutation.externalServiceSubscriptionCancel(input: ExternalServiceSubscriptionCancelInput!): ExternalServiceSubscriptionCancelResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feedItemDiscard",
+      "signature": "Mutation.feedItemDiscard(feedItemId: ID!): FeedItemDiscardResult!",
+      "domain": "postcards",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Do not introduce automatic discard/undo while repairing collection reliability.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feedItemUndoDiscard",
+      "signature": "Mutation.feedItemUndoDiscard(undoToken: String!): FeedItemUndoDiscardResult!",
+      "domain": "postcards",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Do not introduce automatic discard/undo while repairing collection reliability.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederFirmwareUpdateCheckProgress",
+      "signature": "Mutation.feederFirmwareUpdateCheckProgress(feederId: ID!): FeederFirmwareUpdateResult!",
+      "domain": "provision_firmware",
+      "disposition": "core",
+      "task_ids": [
+        "BB-20"
+      ],
+      "rationale": "Preserve supported firmware workflow and recover monitoring failures safely.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederFirmwareUpdateRegularStart",
+      "signature": "Mutation.feederFirmwareUpdateRegularStart(feederId: ID!): FeederFirmwareUpdateResult!",
+      "domain": "provision_firmware",
+      "disposition": "evaluate_only",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Understand immediate-start versus scheduled-start semantics; do not switch behavior merely because a second root exists.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederFirmwareUpdateStart",
+      "signature": "Mutation.feederFirmwareUpdateStart(feederId: ID!): FeederFirmwareUpdateResult!",
+      "domain": "provision_firmware",
+      "disposition": "core",
+      "task_ids": [
+        "BB-20"
+      ],
+      "rationale": "Preserve supported firmware workflow and recover monitoring failures safely.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederInvitationCreate",
+      "signature": "Mutation.feederInvitationCreate(feederId: ID!): FeederInvitation!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederInvitationDelete",
+      "signature": "Mutation.feederInvitationDelete(feederInvitationId: ID!): FeederInvitation!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederInvitationJoinFeeder",
+      "signature": "Mutation.feederInvitationJoinFeeder(token: String!): FeederInvitationJoinFeederResult!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederInvitationRedeem",
+      "signature": "Mutation.feederInvitationRedeem(token: String!): SuccessResult!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederLeave",
+      "signature": "Mutation.feederLeave(feederId: ID!): FeederForMemberOrPending!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederMemberConfirm",
+      "signature": "Mutation.feederMemberConfirm(feederMemberId: ID!): FeederMember!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederMemberDelete",
+      "signature": "Mutation.feederMemberDelete(feederMemberId: ID!): FeederMember!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederPairCheck",
+      "signature": "Mutation.feederPairCheck(feederPairCheckInput: FeederPairCheckInput!): FeederPairCheckResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederPairEnd",
+      "signature": "Mutation.feederPairEnd(feederId: ID!): FeederPairEndResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederPairEndCheck",
+      "signature": "Mutation.feederPairEndCheck(feederId: ID!): FeederPairEndCheckResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederPairStart",
+      "signature": "Mutation.feederPairStart(feederPairStartInput: FeederPairStartInput!): FeederPairStartResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederPairStartCheck",
+      "signature": "Mutation.feederPairStartCheck(feederPairStartCheckInput: FeederPairStartCheckInput!): FeederPairStartCheckResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederRemove",
+      "signature": "Mutation.feederRemove(feederId: ID!): FeederForOwner!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederRequestLivestreamAccess",
+      "signature": "Mutation.feederRequestLivestreamAccess(feederId: ID!): Success!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleAudio",
+      "signature": "Mutation.feederToggleAudio(feederId: ID!, feederToggleAudioInput: FeederToggleAudioInput!): FeederToggleAudioResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleFeederMemberLivestreamAccess",
+      "signature": "Mutation.feederToggleFeederMemberLivestreamAccess(feederMemberId: ID!, memberToggleLivestreamAccessInput: FeederMemberToggleLivestreamAccessInput!): Success!",
+      "domain": "membership",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-16",
+        "BB-21",
+        "BB-35",
+        "BB-37"
+      ],
+      "rationale": "Read and reconcile membership in core; administrative invitation/removal/access mutations need a separate user need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleHighQualityVideo",
+      "signature": "Mutation.feederToggleHighQualityVideo(feederId: ID!, feederToggleHighQualityVideoInput: FeederToggleHighQualityVideoInput!): FeederToggleHighQualityVideoResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleOffGrid",
+      "signature": "Mutation.feederToggleOffGrid(feederId: ID!, feederToggleOffGridInput: FeederToggleOffGridInput!): FeederToggleOffGridResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleOffGridCheck",
+      "signature": "Mutation.feederToggleOffGridCheck(feederId: ID!): FeederToggleOffGridCheckResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederToggleSmartEnergy",
+      "signature": "Mutation.feederToggleSmartEnergy(feederId: ID!, input: FeederToggleSmartEnergyInput!): FeederToggleSmartEnergyResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-26"
+      ],
+      "rationale": "New Smart Energy union/state/control support after hardware validation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederUpdate",
+      "signature": "Mutation.feederUpdate(feederId: ID!, feederUpdateInput: FeederUpdateInput!): FeederForOwner!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederUpdateCameraFieldOfView",
+      "signature": "Mutation.feederUpdateCameraFieldOfView(feederId: ID!, input: FeederUpdateCameraFieldOfViewInput!): FeederUpdateCameraFieldOfViewResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederUpdateLocation",
+      "signature": "Mutation.feederUpdateLocation(feederId: ID!, input: FeederUpdateLocationInput!): FeederForOwner!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-19",
+        "BB-25",
+        "BB-26",
+        "BB-27"
+      ],
+      "rationale": "Validate role/hardware and action-specific progress; existing controls are core, new controls are gated extensions.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederUpdatePowerProfile",
+      "signature": "Mutation.feederUpdatePowerProfile(feederId: ID!, feederUpdatePowerProfileInput: FeederUpdatePowerProfileInput!): FeederUpdatePowerProfileResult!",
+      "domain": "feeder_controls",
+      "disposition": "core",
+      "task_ids": [
+        "BB-19"
+      ],
+      "rationale": "Existing controls must finish/fail/time out, preserve state and reject unsupported options explicitly.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederUpdateVideoQuality",
+      "signature": "Mutation.feederUpdateVideoQuality(feederId: ID!, input: FeederUpdateVideoQualityInput!): FeederUpdateVideoQualityResult!",
+      "domain": "feeder_controls",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-27"
+      ],
+      "rationale": "Validate actual supported camera choices and bounded completion before exposing controls.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederWifiTestStart",
+      "signature": "Mutation.feederWifiTestStart(feederId: ID!): FeederWifiTestStartResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederWifiTestStartCheck",
+      "signature": "Mutation.feederWifiTestStartCheck(feederId: ID!): FeederWifiTestStartCheckResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.feederWifiTestStop",
+      "signature": "Mutation.feederWifiTestStop(feederId: ID!): FeederWifiTestStopResult!",
+      "domain": "provision_firmware",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-20",
+        "BB-37"
+      ],
+      "rationale": "Existing firmware workflow is core; pairing, Wi-Fi setup and physical-device removal stay outside ordinary telemetry scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.hasLinkedAlexa",
+      "signature": "Mutation.hasLinkedAlexa(): AlexaAccountResult!",
+      "domain": "alexa",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Alexa account/device linking is unrelated to the selected HA integration improvements.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.inferenceExternalPostcardConversation",
+      "signature": "Mutation.inferenceExternalPostcardConversation(feedItemId: ID!, input: InferenceExternalPostcardConversationInput!): InferenceExternalPostcardConversationResult!",
+      "domain": "inference_conversation",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Conversation, generic recognition and feedback are distinct mutating/product workflows, not necessary for the core migration.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.inferenceExternalPostcardConversationFromQuestion",
+      "signature": "Mutation.inferenceExternalPostcardConversationFromQuestion(feedItemId: ID!, input: InferenceExternalPostcardConversationFromQuestionInput!): InferenceExternalPostcardConversationFromQuestionResult!",
+      "domain": "inference_conversation",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Conversation, generic recognition and feedback are distinct mutating/product workflows, not necessary for the core migration.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.inferenceExternalPostcardReanalyze",
+      "signature": "Mutation.inferenceExternalPostcardReanalyze(feedItemId: ID!): InferenceExternalPostcardReanalyzeResult!",
+      "domain": "postcards",
+      "disposition": "core",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-12"
+      ],
+      "rationale": "Modern explicit inference/collection with nullable-result, policy and uncertain-outcome handling.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.inferencePostcardFeedback",
+      "signature": "Mutation.inferencePostcardFeedback(feedItemId: ID!, input: InferencePostcardFeedbackInput!): InferencePostcardFeedbackResult!",
+      "domain": "inference_conversation",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-29",
+        "BB-37"
+      ],
+      "rationale": "Feedback/assignment semantics need a separate user need and account validation; read-only named-bird data does not authorize them.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.invitationCodeUseCode",
+      "signature": "Mutation.invitationCodeUseCode(invitationCodeUseCodeInput: InvitationCodeUseCodeInput!): InvitationCodeResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaDelete",
+      "signature": "Mutation.mediaDelete(mediaId: ID!): Success!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaIdentificationRequestCommunityIdentification",
+      "signature": "Mutation.mediaIdentificationRequestCommunityIdentification(mediaIdentificationRequestCommunityIdentificationInput: MediaIdentificationRequestCommunityIdentificationInput!): MediaIdentificationRequestCommunityIdentificationResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaIdentificationVote",
+      "signature": "Mutation.mediaIdentificationVote(mediaIdentificationVoteInput: MediaIdentificationVoteInput!): MediaIdentificationVoteResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaReport",
+      "signature": "Mutation.mediaReport(mediaReportInput: MediaReportInput!): Success!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaShareToggle",
+      "signature": "Mutation.mediaShareToggle(mediaShareToggleInput: MediaShareToggleInput!): Success!",
+      "domain": "media",
+      "disposition": "core",
+      "task_ids": [
+        "BB-09",
+        "BB-11"
+      ],
+      "rationale": "Preserve explicit media sharing semantics and report failures.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaSpeciesNameRecognitionToggle",
+      "signature": "Mutation.mediaSpeciesNameRecognitionToggle(input: MediaSpeciesNameRecognitionToggleInput!): MediaSpeciesNameRecognitionToggleResult!",
+      "domain": "named_birds",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-29"
+      ],
+      "rationale": "Read individual-bird data first; optional rename/recognition actions require typed-error and account validation. Feedback/assignment is separate.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaSpeciesNameRename",
+      "signature": "Mutation.mediaSpeciesNameRename(input: MediaSpeciesNameRenameInput!): MediaSpeciesNameRenameResult!",
+      "domain": "named_birds",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-29"
+      ],
+      "rationale": "Read individual-bird data first; optional rename/recognition actions require typed-error and account validation. Feedback/assignment is separate.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaUploadFinish",
+      "signature": "Mutation.mediaUploadFinish(mediaUploadId: ID!): MediaUploadFinishResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaUploadImageStart",
+      "signature": "Mutation.mediaUploadImageStart(mediaUploadStartInput: MediaUploadStartInput!): MediaUploadImageStartResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediaUploadRestart",
+      "signature": "Mutation.mediaUploadRestart(mediaUploadId: ID!): MediaUploadRestartResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.mediasDelete",
+      "signature": "Mutation.mediasDelete(mediaIds: [ID!]!): MediasDeleteResult!",
+      "domain": "media",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-18",
+        "BB-31",
+        "BB-37"
+      ],
+      "rationale": "Complete media read/resolve/share is selected; upload, deletion and moderation are outside the initial scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.notificationAddDeviceNotificationToken",
+      "signature": "Mutation.notificationAddDeviceNotificationToken(addDeviceNotificationTokenInput: AddDeviceNotificationTokenInput!): Success!",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.notificationDemoForCurrentSession",
+      "signature": "Mutation.notificationDemoForCurrentSession(notificationDemoForCurrentSessionInput: NotificationDemoForCurrentSessionInput!): Success!",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.paymentsProductPurchased",
+      "signature": "Mutation.paymentsProductPurchased(input: PaymentsProductPurchasedInput!): PaymentsProductPurchasedResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.paymentsProductsRestored",
+      "signature": "Mutation.paymentsProductsRestored(): PaymentsProductsRestoredResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardCollect",
+      "signature": "Mutation.postcardCollect(feedItemId: ID!, input: PostcardCollectInput): PostcardCollectResult!",
+      "domain": "postcards",
+      "disposition": "core",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-12"
+      ],
+      "rationale": "Modern explicit inference/collection with nullable-result, policy and uncertain-outcome handling.",
+      "server_deprecated": false,
+      "client_status": "active-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardIgnoreForFeederMembersUpdate",
+      "signature": "Mutation.postcardIgnoreForFeederMembersUpdate(postcardIgnoreForFeederMembersUpdateInput: PostcardSettingsIgnoreForFeederMembersUpdateInput!): PostcardSettingsIgnoreForFeederMembersResult!",
+      "domain": "postcards",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Server-deprecated unused design; do not implement a new feature around it.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardIgnoreMysteryVisitorsUpdate",
+      "signature": "Mutation.postcardIgnoreMysteryVisitorsUpdate(postcardIgnoreMysteryVisitorsUpdateInput: PostcardSettingsIgnoreMysteryVisitorsUpdateInput!): PostcardSettingsIgnoreMysteryVisitorsResult!",
+      "domain": "postcards",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Any global visitor-preference change is explicit opt-in, never a side effect of a sensor/filter.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardMediaSpeciesNameAssign",
+      "signature": "Mutation.postcardMediaSpeciesNameAssign(feedItemId: ID!, input: PostcardMediaSpeciesNameAssignInput!): PostcardMediaSpeciesNameAssignResult!",
+      "domain": "named_birds",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-29",
+        "BB-37"
+      ],
+      "rationale": "Feedback/assignment semantics need a separate user need and account validation; read-only named-bird data does not authorize them.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardMediaSpeciesNameFeedback",
+      "signature": "Mutation.postcardMediaSpeciesNameFeedback(feedItemId: ID!, input: PostcardMediaSpeciesNameFeedbackInput!): PostcardMediaSpeciesNameFeedbackResult!",
+      "domain": "named_birds",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-29",
+        "BB-37"
+      ],
+      "rationale": "Feedback/assignment semantics need a separate user need and account validation; read-only named-bird data does not authorize them.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.postcardMediaSpeciesStateFeedback",
+      "signature": "Mutation.postcardMediaSpeciesStateFeedback(feedItemId: ID!, input: PostcardMediaSpeciesStateFeedbackInput!): PostcardMediaSpeciesStateFeedbackResult!",
+      "domain": "named_birds",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-29",
+        "BB-37"
+      ],
+      "rationale": "Feedback/assignment semantics need a separate user need and account validation; read-only named-bird data does not authorize them.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.premiumCancelled",
+      "signature": "Mutation.premiumCancelled(input: PremiumCancelledInput!): PremiumCancelledResult!",
+      "domain": "commercial",
+      "disposition": "excluded",
+      "task_ids": [
+        "BB-37"
+      ],
+      "rationale": "Billing, cancellation, purchases and referral/invitation-code actions are outside this development scope.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.remoteFeederConnect",
+      "signature": "Mutation.remoteFeederConnect(remoteFeederConnectInput: RemoteFeederConnectInput!): RemoteFeederConnectResult!",
+      "domain": "remote_feeders",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-32",
+        "BB-37"
+      ],
+      "rationale": "Remote connection changes are not part of the initial read-only Explore feature.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.remoteFeederDisconnect",
+      "signature": "Mutation.remoteFeederDisconnect(remoteFeederDisconnectInput: RemoteFeederDisconnectInput!): RemoteFeederDisconnectResult!",
+      "domain": "remote_feeders",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-32",
+        "BB-37"
+      ],
+      "rationale": "Remote connection changes are not part of the initial read-only Explore feature.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.remoteFeederQRCodeScanned",
+      "signature": "Mutation.remoteFeederQRCodeScanned(input: RemoteFeederQRCodeScannedInput!): RemoteFeederQRCodeScannedResult!",
+      "domain": "remote_feeders",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-32",
+        "BB-37"
+      ],
+      "rationale": "Remote connection changes are not part of the initial read-only Explore feature.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.remoteFeederSwitch",
+      "signature": "Mutation.remoteFeederSwitch(remoteFeederSwitchInput: RemoteFeederSwitchInput!): RemoteFeederSwitchResult!",
+      "domain": "remote_feeders",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-32",
+        "BB-37"
+      ],
+      "rationale": "Remote connection changes are not part of the initial read-only Explore feature.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.settingsUpdate",
+      "signature": "Mutation.settingsUpdate(settingsUpdateInput: SettingsUpdateInput!): Settings!",
+      "domain": "profile_runtime",
+      "disposition": "deferred",
+      "task_ids": [
+        "BB-22",
+        "BB-25",
+        "BB-37"
+      ],
+      "rationale": "Use only selected account diagnostics/settings as needed; notification registration and beta toggles are not automatic HA features.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingChooseSpecies",
+      "signature": "Mutation.sightingChooseSpecies(sightingChooseSpeciesInput: SightingChooseSpeciesInput!): SightingReport!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_legacy",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-12"
+      ],
+      "rationale": "Currently wrapped legacy roots remain schema-valid; replace with deliberate compatibility/repair handling.",
+      "server_deprecated": false,
+      "client_status": "deprecated-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingConvertToCannotDecide",
+      "signature": "Mutation.sightingConvertToCannotDecide(sightingConvertToCannotDecideInput: SightingConvertToCannotDecideInput!): SightingReport!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingConvertToMysteryVisitor",
+      "signature": "Mutation.sightingConvertToMysteryVisitor(sightingConvertToMysteryVisitorInput: SightingConvertToMysteryVisitorInput!): SightingReport!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_legacy",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-12"
+      ],
+      "rationale": "Currently wrapped legacy roots remain schema-valid; replace with deliberate compatibility/repair handling.",
+      "server_deprecated": false,
+      "client_status": "deprecated-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingCreateFromMediaReviewReport",
+      "signature": "Mutation.sightingCreateFromMediaReviewReport(sightingCreateFromMediaReviewReportInput: SightingCreateFromMediaReviewReportInput!): SightingCreateFromMediaReviewReportResult!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingCreateFromPostcard",
+      "signature": "Mutation.sightingCreateFromPostcard(sightingCreateFromPostcardInput: SightingCreateFromPostcardInput!): SightingCreateFromPostcardResult!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_legacy",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-12"
+      ],
+      "rationale": "Currently wrapped legacy roots remain schema-valid; replace with deliberate compatibility/repair handling.",
+      "server_deprecated": false,
+      "client_status": "deprecated-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingFinishMediaReview",
+      "signature": "Mutation.sightingFinishMediaReview(sightingFinishMediaReviewInput: SightingFinishMediaReviewInput!): Success!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingIgnore",
+      "signature": "Mutation.sightingIgnore(sightingIgnoreInput: SightingIgnoreInput!): SightingReport!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingIgnoreMysteryVisitor",
+      "signature": "Mutation.sightingIgnoreMysteryVisitor(sightingIgnoreMysteryVisitorInput: SightingIgnoreMysteryVisitorInput!): SightingReport!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingReportFinish",
+      "signature": "Mutation.sightingReportFinish(sightingReportFinishInput: SightingReportFinishInput!): SuccessResult!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingReportPostcardFinish",
+      "signature": "Mutation.sightingReportPostcardFinish(sightingReportPostcardFinishInput: SightingReportPostcardFinishInput!): SightingReportPostcardFinishResult!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_legacy",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-12"
+      ],
+      "rationale": "Currently wrapped legacy roots remain schema-valid; replace with deliberate compatibility/repair handling.",
+      "server_deprecated": false,
+      "client_status": "deprecated-wrapper",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.sightingSendForReview",
+      "signature": "Mutation.sightingSendForReview(sightingSendForReviewInput: SightingSendForReviewInput!): Success!",
+      "domain": "legacy_sightings",
+      "disposition": "retire_or_defer",
+      "task_ids": [
+        "BB-09",
+        "BB-10",
+        "BB-11",
+        "BB-37"
+      ],
+      "rationale": "Migrate legacy client contracts deliberately; do not revive old report-token or community-review flows without a distinct need.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.speciesIgnoreToggle",
+      "signature": "Mutation.speciesIgnoreToggle(speciesIgnoreToggleInput: SpeciesIgnoreToggleInput!): SpeciesIgnoreToggleResult!",
+      "domain": "species",
+      "disposition": "optional",
+      "task_ids": [
+        "BB-28"
+      ],
+      "rationale": "Any global visitor-preference change is explicit opt-in, never a side effect of a sensor/filter.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingActiveIdentifySnapshots",
+      "signature": "Mutation.watchingActiveIdentifySnapshots(input: WatchingIdentifySnapshotsInput!): WatchingIdentifySnapshotsResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingActiveKeep",
+      "signature": "Mutation.watchingActiveKeep(): Watching!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingActiveRemoveSnapshots",
+      "signature": "Mutation.watchingActiveRemoveSnapshots(snapshots: [String!]!): SuccessResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingActiveStop",
+      "signature": "Mutation.watchingActiveStop(): Watching!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingActiveTakeSnapshot",
+      "signature": "Mutation.watchingActiveTakeSnapshot(timestamp: Float!): WatchingActiveTakeSnapshotResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingCooldown",
+      "signature": "Mutation.watchingCooldown(): SuccessResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingStart",
+      "signature": "Mutation.watchingStart(startWatchingInput: StartWatchingInput!): Watching!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": true,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingStartCheck",
+      "signature": "Mutation.watchingStartCheck(startWatchingInput: StartWatchingInput!): WatchingStartCheckResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingStartV2",
+      "signature": "Mutation.watchingStartV2(startWatchingInput: StartWatchingInput!): WatchingStartResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Mutation.watchingWarmup",
+      "signature": "Mutation.watchingWarmup(): SuccessResult!",
+      "domain": "livestream",
+      "disposition": "research",
+      "task_ids": [
+        "BB-35",
+        "BB-36"
+      ],
+      "rationale": "Validate protocol, account scope, capabilities, session cleanup and visitor-capture impact before implementation.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    },
+    {
+      "operation": "Subscription.heartbeat",
+      "signature": "Subscription.heartbeat(): AnyHeartbeat!",
+      "domain": "profile_runtime",
+      "disposition": "research",
+      "task_ids": [
+        "BB-33",
+        "BB-34"
+      ],
+      "rationale": "Content-bearing subscription with unverified scope/transport; evaluate independently from watching.",
+      "server_deprecated": false,
+      "client_status": "unwrapped",
+      "schema_only_is_runtime_validation": false
+    }
+  ]
+}

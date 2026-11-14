@@ -5,10 +5,8 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from birdbuddy.birds import Species
-from birdbuddy.feed import FeedNodeType
-from birdbuddy.media import Media, is_media_expired
-from birdbuddy.sightings import PostcardSighting
+from birdbuddy.media import Media
+from birdbuddy.feeder import MetricState
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -23,15 +21,17 @@ from homeassistant.const import (
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     UnitOfTemperature,
 )
-from homeassistant.helpers.entity import EntityCategory
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, EVENT_NEW_POSTCARD_SIGHTING, LOGGER
+from .const import DOMAIN, LOGGER
 from .coordinator import BirdBuddyDataUpdateCoordinator
 from .entity import BirdBuddyMixin
+from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
 from .visitors import RecentVisitor, RecentVisitors
+from .util import media_preview_url
 
 
 async def async_setup_entry(
@@ -41,16 +41,20 @@ async def async_setup_entry(
 ) -> None:
     """Set up entities from a config entry."""
     coordinator: BirdBuddyDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    feeders = coordinator.feeders.values()
-    async_add_entities(BirdBuddyBatteryEntity(f, coordinator) for f in feeders)
-    async_add_entities(BirdBuddySignalEntity(f, coordinator) for f in feeders)
-    async_add_entities(BirdBuddyStateEntity(f, coordinator) for f in feeders)
-    async_add_entities(BirdBuddyLastSyncEntity(f, coordinator) for f in feeders)
-    async_add_entities(BirdBuddyRecentVisitorEntity(f, coordinator) for f in feeders)
-    # Incubating: Food level always reports LOW
-    async_add_entities(BirdBuddyFoodStateEntity(f, coordinator) for f in feeders)
-    # Incubating: Temperature always reports 0
-    async_add_entities(BirdBuddyTemperatureEntity(f, coordinator) for f in feeders)
+    async_register_feeder_entities(
+        entry,
+        coordinator,
+        async_add_entities,
+        [
+            lambda feeder: BirdBuddyBatteryEntity(feeder, coordinator),
+            lambda feeder: BirdBuddySignalEntity(feeder, coordinator),
+            lambda feeder: BirdBuddyStateEntity(feeder, coordinator),
+            lambda feeder: BirdBuddyLastSyncEntity(feeder, coordinator),
+            lambda feeder: BirdBuddyRecentVisitorEntity(feeder, coordinator),
+            lambda feeder: BirdBuddyFoodStateEntity(feeder, coordinator),
+            lambda feeder: BirdBuddyTemperatureEntity(feeder, coordinator),
+        ],
+    )
 
 
 class BirdBuddyBatteryEntity(BirdBuddyMixin, SensorEntity):
@@ -72,7 +76,7 @@ class BirdBuddyBatteryEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-battery"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         return self.feeder.battery.percentage
 
@@ -101,7 +105,7 @@ class BirdBuddySignalEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-signal"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         return self.feeder.signal.rssi
 
@@ -139,11 +143,10 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
             "visitors": [
                 {
                     "species": entry.species.name if entry.species else None,
-                    "media_url": entry.media.content_url
-                    or entry.media.thumbnail_url,
+                    "media_url": media_preview_url(entry.media),
                     "created_at": (
                         entry.created_at.isoformat()
-                        if hasattr(entry.created_at, "isoformat")
+                        if isinstance(entry.created_at, datetime)
                         else (str(entry.created_at) if entry.created_at else None)
                     ),
                 }
@@ -162,26 +165,13 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
 
     @property
     def entity_picture(self) -> str | None:
-        if picture := super().entity_picture:
-            if not is_media_expired(picture):
-                return picture
-            self._attr_entity_picture = None
-
-        # FIXME: no good way to refresh if the picture url is expired
-
-        if self._latest_media:
-            picture = self._latest_media.content_url or self._latest_media.thumbnail_url
-            if not is_media_expired(picture):
-                return picture
-            self._latest_media = None
-
-        return None
+        return media_preview_url(self._latest_media)
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> str | None:
         if attr := super().native_value:
             # Postcard listener set the attribute directly, use it
-            return attr
+            return str(attr)
         return None
 
     @callback
@@ -189,20 +179,9 @@ class BirdBuddyRecentVisitorEntity(BirdBuddyMixin, RestoreSensor):
         self._recent_visitors = list(visitors.recent)
         media = visitors.latest_media
         species = visitors.latest_species
-        if media:
-            # Update state and entity_picture together so they always describe
-            # the same sighting. `species` may be None (postcard arrived but
-            # the bird wasn't recognized and had no suggestions); set state to
-            # None too rather than leaving the previous sighting's species,
-            # which is upstream issue #95 ("state lags entity_picture").
-            self._latest_media = media
-            self._attr_entity_picture = media.content_url
-            self._attr_native_value = species.name if species else None
-        elif species:
-            # No new media — usually the `_update_latest_visitor` fallback
-            # filling in species from collections without a matching media.
-            # Update just the state.
-            self._attr_native_value = species.name
+        self._latest_media = media
+        self._attr_entity_picture = media_preview_url(media)
+        self._attr_native_value = species.name if species else None
         self.async_write_ha_state()
 
 
@@ -241,7 +220,7 @@ class BirdBuddyStateEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-state"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> str:
         """Return the state of the sensor."""
         return self.feeder.state.value.lower()
 
@@ -295,7 +274,7 @@ class BirdBuddyTemperatureEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-temperature"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> float | None:
         """Temperature reported by the feeder"""
         return self.feeder.temperature
 
@@ -332,9 +311,10 @@ class BirdBuddyFoodStateEntity(BirdBuddyMixin, SensorEntity):
         self._attr_unique_id = f"{self.feeder.id}-food-state"
 
     @property
-    def native_value(self) -> int:
+    def native_value(self) -> str | None:
         """Return the state of the sensor."""
-        return self.feeder.food.value.lower()
+        state = self.feeder.food
+        return state.value.lower() if state is not MetricState.UNKNOWN else None
 
     async def add_to_platform_finish(self) -> None:
         await super().add_to_platform_finish()

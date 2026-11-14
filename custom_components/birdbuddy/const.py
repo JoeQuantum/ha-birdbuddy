@@ -23,12 +23,14 @@ MIN_POLLING_INTERVAL = 1
 MAX_POLLING_INTERVAL = 20
 
 CONF_FEEDER_ID = "feeder_id"
+CONF_ACCOUNT_ID = "account_id"
+CONF_CONFIG_ENTRY_ID = "config_entry_id"
 TRIGGER_TYPE_POSTCARD = "new_postcard"
 EVENT_NEW_POSTCARD_SIGHTING = f"{DOMAIN}_new_postcard_sighting"
-# Fired once per newly-seen visitor-bearing feed item (postcards, sightings,
-# mystery visitors, etc). Independent of and additive to the postcard-sighting
-# event above — this one carries the media URL directly, including unidentified
-# postcards, and does not depend on the collect-to-sighting conversion.
+EVENT_NEW_POSTCARD = f"{DOMAIN}_new_postcard"
+EVENT_POSTCARD_BACKFILL = f"{DOMAIN}_postcard_backfill"
+LEGACY_ALIASES_REMOVE_IN = "0.4.0"
+# Compatibility notification event. No legacy report-token event is fabricated.
 EVENT_NEW_FEED_ITEM = f"{DOMAIN}_new_feed_item"
 
 # Maximum number of recent visitors to retain for the carousel surface.
@@ -36,21 +38,48 @@ EVENT_NEW_FEED_ITEM = f"{DOMAIN}_new_feed_item"
 RECENT_VISITOR_COUNT = 5
 
 SERVICE_COLLECT_POSTCARD = "collect_postcard"
-SERVICE_SCHEMA_COLLECT_POSTCARD = vol.Schema(
+SERVICE_IDENTIFY_POSTCARD = "identify_postcard"
+SERVICE_GET_POSTCARD_DETAILS = "get_postcard_details"
+SERVICE_BACKFILL = "backfill"
+SERVICE_RETRY_FEED_ITEMS = "retry_feed_items"
+SERVICE_ACKNOWLEDGE_POSTCARD_RETRY = "acknowledge_postcard_retry"
+
+# Preserve raw values for policy validation. In particular, text "false" must
+# never become True through bool coercion, nor may a default opt into a policy.
+SERVICE_SCHEMA_COLLECT_POSTCARD = vol.Schema(dict)
+_SERVICE_TARGETS = {
+    vol.Optional(CONF_DEVICE_ID): cv.string,
+    vol.Optional(CONF_CONFIG_ENTRY_ID): cv.string,
+    vol.Optional(CONF_ACCOUNT_ID): cv.string,
+    vol.Optional(CONF_FEEDER_ID): cv.string,
+}
+SERVICE_SCHEMA_POSTCARD_ID = vol.Schema(
     {
-        vol.Required("postcard"): cv.has_at_least_one_key("id"),
-        vol.Required("sighting"): {
-            vol.Required("sightingReport"): {},
-            vol.Required("feeder"): vol.All(
-                cv.has_at_least_one_key("id"),
-                cv.has_at_least_one_key("name"),
-            ),
-            vol.Extra: object,
-        },
-        vol.Optional(CONF_DEVICE_ID): cv.string,
-        vol.Optional("strategy"): cv.string,
-        vol.Optional("best_guess_confidence"): vol.Coerce(int),
-        vol.Optional("share_media"): vol.Coerce(bool),
-    },
-    extra=vol.ALLOW_EXTRA,
+        vol.Required("postcard_id"): vol.All(cv.string, vol.Length(min=1)),
+        **_SERVICE_TARGETS,
+    }
+)
+SERVICE_SCHEMA_BACKFILL = vol.Schema(
+    {
+        vol.Optional(CONF_CONFIG_ENTRY_ID): cv.string,
+        vol.Optional(CONF_ACCOUNT_ID): cv.string,
+        vol.Optional("max_pages", default=10): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=100)
+        ),
+    }
+)
+SERVICE_SCHEMA_RETRY_FEED_ITEMS = vol.Schema(
+    {
+        vol.Optional(CONF_CONFIG_ENTRY_ID): cv.string,
+        vol.Optional(CONF_ACCOUNT_ID): cv.string,
+        vol.Optional("postcard_id"): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+SERVICE_SCHEMA_ACKNOWLEDGE_RETRY = vol.Schema(
+    {
+        vol.Optional(CONF_CONFIG_ENTRY_ID): cv.string,
+        vol.Optional(CONF_ACCOUNT_ID): cv.string,
+        vol.Required("postcard_id"): vol.All(cv.string, vol.Length(min=1)),
+        vol.Required("confirm"): vol.All(bool, vol.In([True])),
+    }
 )

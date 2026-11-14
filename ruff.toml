@@ -1,0 +1,12 @@
+# Keep the syntax floor compatible with the minimum supported HA runtime.
+target-version = "py312"
+line-length = 88
+include = ["custom_components/**/*.py", "tests/**/*.py", "scripts/**/*.py"]
+
+[lint]
+# Start with correctness rules. Import ordering, formatting and documentation
+# cleanup are separate from the compatibility migration.
+select = ["E4", "E7", "E9", "F", "ASYNC", "B"]
+
+[lint.per-file-ignores]
+"tests/**" = ["B018"]  # Attribute access can deliberately assert a property.
