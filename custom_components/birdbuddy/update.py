@@ -30,6 +30,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, LOGGER
+from .control import _requires_reauth, _start_reauth
 from .coordinator import BirdBuddyDataUpdateCoordinator
 from .platform import async_register_feeder_entities
 from .device import BirdBuddyDevice
@@ -193,10 +194,16 @@ class BirdBuddyUpdate(BirdBuddyMixin, UpdateEntity):
                 "The device reported an unknown firmware update state"
             ) from err
         except Exception as err:
+            if _requires_reauth(err):
+                _start_reauth(self)
+                raise HomeAssistantError(
+                    "Bird Buddy authentication expired; sign in again. "
+                    "The device may still be updating"
+                ) from None
             # Exception text and full result dictionaries can contain account data.
             raise HomeAssistantError(
                 "Firmware operation could not be confirmed; recheck device state"
-            ) from err
+            ) from None
 
     async def _monitor_firmware(self, version: str | None) -> None:
         result = await self.coordinator.client.update_firmware_start(
@@ -231,11 +238,15 @@ class BirdBuddyUpdate(BirdBuddyMixin, UpdateEntity):
                 UnexpectedResponseError,
                 FeederControlError,
             ) as err:
+                if _requires_reauth(err):
+                    # Expired credentials are not a transient progress error.
+                    # Let the outer handler start reauth without retrying here.
+                    raise
                 errors += 1
                 if errors >= MAX_ERRORS:
                     raise HomeAssistantError(
                         "Firmware monitoring lost contact; the device may still be updating"
-                    ) from err
+                    ) from None
                 LOGGER.warning(
                     "Firmware progress check failed (%d/%d): %s",
                     errors,

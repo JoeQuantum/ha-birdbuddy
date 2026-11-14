@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import traceback
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -433,6 +434,37 @@ async def test_service_auth_failure_starts_reauthentication(hass, accounts_facto
         with pytest.raises(HomeAssistantError, match="authentication expired"):
             await call(hass, "get_postcard_details", {"postcard_id": "card-a"})
         reauth.assert_called_once_with(hass)
+    account.assert_no_mutations()
+
+
+@pytest.mark.parametrize(
+    "service",
+    ["get_postcard_details", "backfill", "identify_postcard", "collect_postcard"],
+)
+@pytest.mark.parametrize("error_type", [GraphqlError, RuntimeError])
+async def test_read_service_errors_do_not_expose_backend_payloads(
+    hass, accounts_factory, service, error_type
+):
+    account = accounts_factory(snapshot=[card()])
+    await account.poll()
+    private = "synthetic-private-vendor-detail?Signature=secret"
+    error = (
+        error_type({"message": private})
+        if error_type is GraphqlError
+        else error_type(private)
+    )
+    data = {"config_entry_id": account.entry.entry_id}
+    if service != "backfill":
+        account.client.get_feed_item.side_effect = error
+        data["postcard_id"] = "card-a"
+        if service == "collect_postcard":
+            data["selection_policy"] = "server"
+    else:
+        account.intake_error = error
+    with pytest.raises(HomeAssistantError) as caught:
+        await call(hass, service, data)
+    assert type(error).__name__ in str(caught.value)
+    assert private not in "".join(traceback.format_exception(caught.value))
     account.assert_no_mutations()
 
 

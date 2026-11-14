@@ -1,6 +1,7 @@
 """Media browsing and playback remain bounded to one loaded account."""
 
 import asyncio
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -14,6 +15,7 @@ from homeassistant.config_entries import ConfigEntryState
 
 from custom_components.birdbuddy.const import DOMAIN
 from custom_components.birdbuddy.media_source import BirdBuddyMediaSource
+from tests.coordinator_helpers import accounts_factory as accounts_factory
 from tests.ha_compat import common as ha_test_common
 
 URL = "https://cdn.example.invalid/image.jpg?Expires=99999999999&Signature=private"
@@ -66,7 +68,9 @@ def _account(hass, account_id="account-a", *, loaded=True, url=URL):
         ),
         collection=AsyncMock(return_value={"media-shared-id": _media(url)}),
     )
-    coordinator = SimpleNamespace(client=client, verify_account_identity=MagicMock())
+    coordinator = SimpleNamespace(
+        client=client, verify_account_identity=MagicMock(), async_work=nullcontext
+    )
     if loaded:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     return entry, coordinator
@@ -255,6 +259,61 @@ async def test_playback_cancellation_propagates(hass):
     coordinator.client.collection.side_effect = asyncio.CancelledError()
     with pytest.raises(asyncio.CancelledError):
         await source.async_resolve_media(_item(hass, entry, media=True))
+
+
+@pytest.mark.parametrize("operation", ["accounts", "collection", "playback"])
+async def test_shutdown_cancels_and_drains_media_reads(
+    hass, accounts_factory, operation
+):
+    account = accounts_factory()
+    source = BirdBuddyMediaSource(hass)
+    entered, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def blocked(*args, **kwargs):
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    account.client.refresh_collections = AsyncMock(
+        return_value={"collection-shared-id": _collection()}
+    )
+    account.client.collection = AsyncMock(side_effect=blocked)
+    if operation == "accounts":
+        account.client.refresh_collections.side_effect = blocked
+    item = _item(
+        hass,
+        account.entry,
+        collection=operation == "collection",
+        media=operation == "playback",
+    )
+    read = (
+        source.async_resolve_media
+        if operation == "playback"
+        else source.async_browse_media
+    )
+    task = asyncio.create_task(read(item))
+    try:
+        await entered.wait()
+        await account.coordinator.async_shutdown()
+        assert task.done(), "Account shutdown left a cloud media read running"
+        assert task.cancelled() and cancelled.is_set()
+        assert not account.coordinator._active_work
+        calls = (
+            account.client.collection.await_count,
+            account.client.refresh_collections.await_count,
+        )
+        with pytest.raises(MediaSourceError):
+            await read(item)
+        assert calls == (
+            account.client.collection.await_count,
+            account.client.refresh_collections.await_count,
+        )
+        account.assert_no_mutations()
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 async def test_not_loaded_entry_with_stale_runtime_data_is_rejected(hass):

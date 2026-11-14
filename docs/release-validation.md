@@ -114,6 +114,21 @@ HA 2026.11 replaces HACS with the built-in
 validates that current install path. It does not validate a legacy HACS-to-
 Marketplace migration with existing user data.
 
+## Final offline review
+
+The follow-up PR review fixed three shared failure paths: account shutdown now
+cancels and drains Media Browser reads; core service errors omit raw backend
+payloads and exception chains; firmware authentication failures start
+reauthentication immediately instead of consuming the progress retry budget.
+Firmware monitoring still preserves the last reported server progress and does
+not imply that the physical update stopped.
+
+Fifteen regression cases reproduce these failures using mocked network responses,
+including collection and identification failures before any mutation. These
+changes follow the exact live-tested revisions above and are validated offline;
+no additional Bird Buddy requests or physical actions were performed for this
+review.
+
 ## Remaining release gates
 
 The existing home installation still needs backup, actual 0.1.x upgrade and

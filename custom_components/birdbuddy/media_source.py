@@ -92,14 +92,15 @@ class BirdBuddyMediaSource(MediaSource):
         config = None
         try:
             config, coordinator = self._get_account(config_id)
-            for _ in range(2):
-                medias = await coordinator.client.collection(collection_id)
-                self._check_loaded(config, coordinator)
-                media = medias.get(media_id)
-                if media is None:
-                    break
-                if url := _playback_url(media):
-                    return PlayMedia(url, _mime_type(media))
+            async with coordinator.async_work():
+                for _ in range(2):
+                    medias = await coordinator.client.collection(collection_id)
+                    self._check_loaded(config, coordinator)
+                    media = medias.get(media_id)
+                    if media is None:
+                        break
+                    if url := _playback_url(media):
+                        return PlayMedia(url, _mime_type(media))
         except AuthenticationFailedError:
             if config is not None:
                 config.async_start_reauth(self.hass)
@@ -120,21 +121,24 @@ class BirdBuddyMediaSource(MediaSource):
         config = None
         try:
             config, coordinator = self._get_account(config_id)
-            collections = await coordinator.client.refresh_collections()
-            self._check_loaded(config, coordinator)
-            if collection_id:
-                collection = collections.get(collection_id)
-                if collection is None:
-                    raise MediaSourceError("This Bird Buddy collection is unavailable")
-                return await self._build_media_collection_entries(
-                    config, coordinator, collection
-                )
-            base = self._account_media_source(config)
-            base.children = [
-                self._build_media_collection(config, value)
-                for value in collections.values()
-            ]
-            return base
+            async with coordinator.async_work():
+                collections = await coordinator.client.refresh_collections()
+                self._check_loaded(config, coordinator)
+                if collection_id:
+                    collection = collections.get(collection_id)
+                    if collection is None:
+                        raise MediaSourceError(
+                            "This Bird Buddy collection is unavailable"
+                        )
+                    return await self._build_media_collection_entries(
+                        config, coordinator, collection
+                    )
+                base = self._account_media_source(config)
+                base.children = [
+                    self._build_media_collection(config, value)
+                    for value in collections.values()
+                ]
+                return base
         except AuthenticationFailedError:
             if config is not None:
                 config.async_start_reauth(self.hass)
