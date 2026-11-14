@@ -232,11 +232,19 @@ def _setup_services(hass: HomeAssistant) -> None:
         async def call(service: ServiceCall) -> ServiceResponse:
             try:
                 return await handler(service)
-            except AuthenticationFailedError as err:
+            except AuthenticationFailedError:
                 resolve(service.data).config_entry.async_start_reauth(hass)
-                raise HomeAssistantError("Bird Buddy authentication expired") from err
+                raise HomeAssistantError("Bird Buddy authentication expired") from None
             except IntakeError as err:
-                raise ServiceValidationError(str(err)) from err
+                raise ServiceValidationError(str(err)) from None
+            except HomeAssistantError as err:
+                # Keep actionable validation messages, but not a chained SDK
+                # exception containing account payloads or signed media URLs.
+                raise err from None
+            except Exception as err:
+                raise HomeAssistantError(
+                    f"Bird Buddy service failed ({type(err).__name__})"
+                ) from None
 
         return call
 

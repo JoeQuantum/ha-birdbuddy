@@ -1,15 +1,18 @@
 """Firmware monitoring releases local progress after every terminal path."""
 
 import asyncio
+import traceback
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from birdbuddy.exceptions import (
+    AuthenticationFailedError,
     GraphqlError,
     NoFirmwareUpdateAvailableError,
     NoResponseError,
 )
 from birdbuddy.feeder import (
+    FeederControlError,
     FeederUpdateStatus,
     FirmwareUpdatePreconditionError,
     FirmwareUpdateUnknownStateError,
@@ -71,12 +74,15 @@ async def test_four_errors_clear_42_percent_and_later_attempt_can_resume(hass, c
         }
     )
     coordinator.client.update_firmware_check.side_effect = [error] * 4
-    with pytest.raises(HomeAssistantError, match="lost contact"):
+    with pytest.raises(HomeAssistantError, match="lost contact") as caught:
         await entity.async_install(None, False)
     assert entity.in_progress is False
     assert entity.extra_state_attributes["firmware_server_status"] == "in_progress"
     assert entity.extra_state_attributes["firmware_server_progress"] == 42
     assert "PRIVATE_ACCOUNT_DETAIL" not in caplog.text
+    assert "PRIVATE_ACCOUNT_DETAIL" not in "".join(
+        traceback.format_exception(caught.value)
+    )
     assert "(1/4)" in caplog.text
     coordinator.client.update_firmware_check.side_effect = [_status("Succeeded")]
     await entity.async_install(None, False)
@@ -232,3 +238,27 @@ async def test_unknown_check_variant_is_terminal_and_preserved(hass):
     assert entity.in_progress is False
     assert entity.extra_state_attributes["firmware_server_status"] == "unknown"
     assert coordinator.client.update_firmware_check.await_count == 1
+
+
+@pytest.mark.parametrize("phase", ["start", "check"])
+@pytest.mark.parametrize("wrapped", [False, True])
+async def test_firmware_auth_failure_starts_reauth_without_retry(hass, phase, wrapped):
+    entity, coordinator = _entity(hass)
+    private = "synthetic-private-auth-detail"
+    error: Exception = AuthenticationFailedError(private)
+    if wrapped:
+        error = FeederControlError(private)
+        error.__cause__ = AuthenticationFailedError(private)
+    method = getattr(coordinator.client, "update_firmware_" + phase)
+    method.side_effect = error
+    with pytest.raises(HomeAssistantError, match="sign in again") as caught:
+        await entity.async_install(None, False)
+    coordinator.config_entry.async_start_reauth.assert_called_once_with(hass)
+    coordinator.async_set_update_error.assert_called_once()
+    method.assert_awaited_once()
+    assert entity.in_progress is False
+    assert entity._install_task is None
+    assert private not in "".join(traceback.format_exception(caught.value))
+    if phase == "check":
+        assert entity.extra_state_attributes["firmware_server_status"] == "in_progress"
+        assert entity.extra_state_attributes["firmware_server_progress"] == 42
