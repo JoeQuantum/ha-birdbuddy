@@ -38,8 +38,10 @@ with removal planned for 0.4. Smart Energy writes, camera controls, push deliver
 and camera sessions retain their [evidence gates](api-capabilities.md).
 
 Repository validation uses the schema captured on 2026-11-13 and synthetic
-fixtures. Standalone API evidence, where available, is separate from real HA
-installation, lifecycle and physical-device validation. Those release gates
+fixtures. A temporary HA 2026.11.1 instance also passed Marketplace installation,
+upgrade from the core candidate, lifecycle, read-only insight and token-renewal
+checks. See [release validation](release-validation.md) for exact revisions and
+scope. Existing-home upgrade, physical actions and vendor report-limit gates
 remain open; this is a development candidate. The manifest records the exact
 immutable companion revision.
 The workspace release evidence records the final test counts, archive hash and

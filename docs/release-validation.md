@@ -1,11 +1,12 @@
 # Core 0.2.0 release validation
 
-This is an offline candidate validation record, not evidence of a published
-release, a HACS server installation or a live Bird Buddy account canary.
+This record separates offline candidate validation from the subsequent temporary
+HA read-only canary. Neither is evidence of a published release or production
+deployment.
 The candidate pairs integration **0.2.0** with immutable client commit
-`593bf8df89ef04291a79004df9bfd89c30d1889d`. No account authentication,
-collection, inference, sharing, device control or firmware installation was
-performed during these checks.
+`593bf8df89ef04291a79004df9bfd89c30d1889d`. The offline checks below did not
+authenticate or perform collection, inference, sharing, device control or
+firmware installation. The later live read-only canary has its own scope below.
 
 ## Upgrade and storage checks
 
@@ -78,14 +79,48 @@ old report-token collection automation must remain disabled unless its external
 behavior has separately been verified. Reverting code is not an instruction to
 replay unknown cloud actions.
 
+## Temporary HA and Marketplace canary
+
+On 2026-11-13, a separate localhost-only HA 2026.11.1 development instance
+installed the core candidate through the built-in Marketplace at integration
+revision `034ce58238b6a0021366a06cb7a9683a7ef1cd6a`, with the exact core client
+pin above. Marketplace then upgraded it to optional integration revision
+`e69816f886b21229a2cd311858e1953a5a9519e0`, with client
+`80574d823c5c7e32f711c2ff9dfb77737c386110`. Installed component files were compared
+byte-for-byte with both Git revisions before use.
+
+A real email/password account completed setup, telemetry and postcard intake.
+Both candidates passed reload/unload/re-enable, full process restart, diagnostics,
+postcard details, collection browsing, media resolution, image retrieval and
+recorder-history checks. The core-to-optional upgrade preserved the entry,
+device/entity registry identities, disabled controls and durable intake. Real
+token renewal succeeded through each HA coordinator without another password
+sign-in. The lab cleared only the in-memory access token to trigger that check.
+
+All eight optional insight resources were exercised through HA's response-only
+service, including typed unavailable recap handling, cache reuse and rejection
+of invalid requests before cloud access. A historical short report still returned
+a vendor error; it remained separate from a successful cached full-day report and
+did not invalidate account telemetry or trigger reauthentication.
+
+The lab blocked all Bird Buddy mutations except authentication exchanges, disabled
+control entities and configured no collection automations. No hardware or
+postcard action was tested. Private account data, credentials and raw responses
+are excluded from public evidence. The temporary runtime is a macOS development
+environment and is not a production installation.
+
+HA 2026.11 replaces HACS with the built-in
+[Marketplace](https://www.home-assistant.io/integrations/marketplace/). This run
+validates that current install path. It does not validate a legacy HACS-to-
+Marketplace migration with existing user data.
+
 ## Remaining release gates
 
-An authorized live account/hardware canary is unavailable. HACS discovery,
-download/restart on a real HA instance, real account refresh and device-specific
-physical behavior therefore remain unverified. These are explicit release
-limitations, not passed checks. Offline tests and archive integrity do not
-establish cloud permissions, firmware success, subscription eligibility or
-Nook/Smart Energy hardware compatibility. See the
+The existing home installation still needs backup, actual 0.1.x upgrade and
+household-specific lifecycle/automation validation. Physical device actions,
+collection/sharing, firmware success, supported Smart Energy/camera behavior and
+vendor report availability limits remain unverified. Read-only cloud and lab
+evidence does not satisfy those gates. See the
 [hardware evidence matrix](hardware-and-roles.md).
 
 This workflow prepares a reviewable candidate only. Publishing a release,

@@ -36,7 +36,23 @@ Facebook and other social sign-in methods are not implemented. An invited
 email/password member account may expose fewer fields and no owner controls;
 do not reset or re-pair hardware merely to install this integration.
 
-### HACS
+### Marketplace (Home Assistant 2026.11 and newer)
+
+HACS is built into these versions as **Settings → Marketplace**. A separate HACS
+installation is no longer used. See the
+[Home Assistant Marketplace guide](https://www.home-assistant.io/integrations/marketplace/).
+
+1. Open **Settings → Marketplace → Add from link** and enter
+   `https://github.com/JoeQuantum/ha-birdbuddy`.
+2. Complete the GitHub connection when prompted; custom repositories require it.
+3. Install Bird Buddy and restart Home Assistant when prompted.
+4. Open **Settings → Devices & Services → Add Integration → Bird Buddy** and
+   enter your Bird Buddy email and password.
+
+Existing HACS installations migrate to Marketplace when Home Assistant upgrades.
+Back up your configuration before upgrading either Home Assistant or Bird Buddy.
+
+### HACS (Home Assistant 2025.1.4–2026.10)
 
 1. Add `https://github.com/JoeQuantum/ha-birdbuddy` as a HACS custom repository,
    category **Integration**.

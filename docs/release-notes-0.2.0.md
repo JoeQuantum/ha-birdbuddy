@@ -61,9 +61,11 @@ The core client is pinned to immutable revision
 
 ## Limits of this candidate
 
-This is a local/offline-validated development candidate. No authenticated account
-canary, live cloud collection/sharing, firmware installation or physical hardware
-compatibility is claimed. A release decision must retain those limits. Heartbeat
+This development candidate has offline validation and a temporary HA 2026.11.1
+read-only account canary, including Marketplace installation and token renewal.
+Existing-home upgrades, live cloud collection/sharing, firmware installation and
+physical hardware compatibility remain unverified. A release decision must
+retain those limits. Heartbeat
 push, camera sessions, hardware-specific camera modes and Smart Energy writes stay
 behind their documented evidence gates. See [API capabilities](api-capabilities.md).
 
