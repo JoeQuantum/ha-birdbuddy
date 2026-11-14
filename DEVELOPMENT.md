@@ -69,6 +69,28 @@ before integration dependencies so recent HA dependency aliases are applied.
 It does not start Home Assistant, authenticate, access an account or perform
 Bird Buddy operations.
 
+## Temporary live validation
+
+A separate HA 2026.11.1 development instance has exercised the exact core and
+optional candidates with a real email/password account. The checks cover
+Marketplace installation, core-to-optional upgrade, persisted account and registry
+identities, restart/reload/unload, diagnostics, recorder history, postcard details,
+media browsing, image retrieval, all eight insight resources and token renewal.
+The tested source and dependency revisions are recorded in
+[release validation](docs/release-validation.md).
+
+The temporary instance uses a separate configuration directory and listens only
+on localhost. A lab-only transport allowlist permits reviewed GraphQL reads and
+authentication exchanges, with a persistent request budget. Device controls are
+disabled and collection automations are absent. Token-renewal checks clear only
+the in-memory access token through a lab helper before an ordinary refresh.
+These helpers are not part of the installed Bird Buddy candidate.
+
+This supplements the offline matrix. It does not validate an existing household's
+0.1.x upgrade, physical controls, collection/sharing or firmware installation.
+HA Core on macOS is used as a development runtime, not a supported production
+installation. HA 2026.11 includes Marketplace; older lanes still use HACS.
+
 ## Updating dependencies
 
 Runtime requirements must match `custom_components/birdbuddy/manifest.json`
